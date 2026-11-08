@@ -19,7 +19,7 @@ A notch app for macOS, written in SwiftUI. It turns the MacBook notch into a sma
 - Double-click a file to open it. Right-click for Show in Finder, Copy Path or Remove.
 - The shelf keeps a link to the original file, not a copy. Moving or deleting the original removes it from the shelf.
 
-**Settings** (from the menu bar icon)
+**Settings** (gear icon in the open notch, or the menu bar icon)
 - Launch at login
 - Show the notch on displays without one
 - Show the playing song while the notch is closed
@@ -32,6 +32,8 @@ A notch app for macOS, written in SwiftUI. It turns the MacBook notch into a sma
 4. Open **System Settings › Privacy & Security**, scroll down, click **Open Anyway** next to Canopy2, and confirm.
 
 The first time it reads Music or Spotify, macOS asks whether Canopy 2 may control that app. Click **OK**. To change this later, go to **System Settings › Privacy & Security › Automation**.
+
+When it starts, the notch opens for 3 seconds so you can see it's running. It has no Dock icon. To show the notch again, open the app again or hover over the notch.
 
 Requires macOS 14 or later. Runs on Apple silicon and Intel.
 

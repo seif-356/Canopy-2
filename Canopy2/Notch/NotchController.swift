@@ -21,6 +21,8 @@ final class NotchController {
     private var dragChangeCountAtMouseDown = 0
     private var lastNotchlessPref: Bool?
     private var lastActivityPref: Bool?
+    /// While set and in the future, moving the pointer away doesn't close the notch.
+    private var holdOpenUntil: Date?
 
     init() {
         let nowPlaying = NowPlayingService()
@@ -165,6 +167,22 @@ final class NotchController {
 
     // MARK: - Open / close
 
+    /// Opens the notch for a few seconds so it's obvious the app is running
+    /// (it has no Dock icon, and the menu bar icon can hide behind the notch).
+    func showHello() {
+        let seconds = 3.0
+        holdOpenUntil = Date().addingTimeInterval(seconds)
+        open()
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(seconds))
+            guard let self else { return }
+            self.holdOpenUntil = nil
+            if let geometry = self.model.geometry, !self.keepOpenZone(geometry).contains(NSEvent.mouseLocation) {
+                self.close()
+            }
+        }
+    }
+
     func open(tab: NotchTab? = nil) {
         cancelOpen()
         cancelClose()
@@ -207,6 +225,7 @@ final class NotchController {
     private func scheduleClose() {
         // Don't close mid-drag (e.g. while dragging a file out of the shelf).
         guard pendingClose == nil, !isMouseButtonDown else { return }
+        if let holdOpenUntil, holdOpenUntil > Date() { return }
         pendingClose = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(250))
             guard !Task.isCancelled, let self else { return }

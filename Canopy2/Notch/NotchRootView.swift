@@ -93,6 +93,18 @@ struct OpenNotchView: View {
             if model.tab == .shelf {
                 ShelfClearButton(shelf: model.shelf)
             }
+            Menu {
+                Button("Settings…") { SettingsWindowController.shared.show() }
+                Divider()
+                Button("Quit Canopy 2") { NSApp.terminate(nil) }
+            } label: {
+                Image(systemName: "gearshape.fill")
+                    .font(.system(size: 12, weight: .semibold))
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Settings")
         }
     }
 }

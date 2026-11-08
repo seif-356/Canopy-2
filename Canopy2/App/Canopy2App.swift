@@ -8,8 +8,8 @@ struct Canopy2App: App {
         // The app has no Dock icon (LSUIElement), so the menu bar item is
         // the way to reach Settings and Quit.
         MenuBarExtra("Canopy 2", systemImage: "rectangle.topthird.inset.filled") {
-            SettingsLink {
-                Text("Settings…")
+            Button("Settings…") {
+                SettingsWindowController.shared.show()
             }
             .keyboardShortcut(",")
             Divider()
@@ -17,10 +17,6 @@ struct Canopy2App: App {
                 NSApp.terminate(nil)
             }
             .keyboardShortcut("q")
-        }
-
-        Settings {
-            SettingsView()
         }
     }
 }
@@ -34,6 +30,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         let controller = NotchController()
         controller.start()
+        controller.showHello()
         notchController = controller
+    }
+
+    /// Opening the app again while it runs (e.g. double-clicking it in Finder) shows the notch.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        notchController?.showHello()
+        return false
     }
 }
