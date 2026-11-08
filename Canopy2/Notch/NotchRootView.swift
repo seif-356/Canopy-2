@@ -1,0 +1,188 @@
+import SwiftUI
+
+/// Fills the whole panel; draws the notch hanging from the top centre.
+struct NotchRootView: View {
+    @ObservedObject var model: NotchModel
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            if let geometry = model.geometry {
+                notch(geometry)
+            }
+        }
+        .frame(
+            width: NotchMetrics.openSize.width + NotchMetrics.shadowPadding * 2,
+            height: NotchMetrics.openSize.height + NotchMetrics.shadowPadding,
+            alignment: .top
+        )
+        .environment(\.colorScheme, .dark)
+    }
+
+    private func notch(_ geometry: NotchGeometry) -> some View {
+        let size = model.isOpen ? NotchMetrics.openSize : model.closedSize
+        let shape = NotchShape(
+            topRadius: model.isOpen ? NotchMetrics.openTopRadius : NotchMetrics.closedTopRadius,
+            bottomRadius: model.isOpen ? NotchMetrics.openBottomRadius : NotchMetrics.closedBottomRadius
+        )
+        return ZStack(alignment: .top) {
+            if model.isOpen {
+                OpenNotchView(model: model, notchHeight: geometry.notchSize.height)
+                    .transition(.opacity.combined(with: .scale(scale: 0.94, anchor: .top)))
+            } else if model.showsActivity {
+                ClosedActivityView(player: model.nowPlaying, notchHeight: geometry.notchSize.height)
+                    .transition(.opacity)
+            }
+        }
+        .frame(width: size.width, height: size.height, alignment: .top)
+        .background(shape.fill(Color.black))
+        .clipShape(shape)
+        .shadow(color: .black.opacity(model.isOpen ? 0.45 : 0), radius: 14, y: 4)
+    }
+}
+
+/// Artwork on the left of the camera, live bars on the right, while music plays.
+struct ClosedActivityView: View {
+    @ObservedObject var player: NowPlayingService
+    let notchHeight: CGFloat
+
+    var body: some View {
+        HStack {
+            ArtworkView(image: player.artwork, size: max(notchHeight - 10, 12), cornerRadius: 5)
+            Spacer(minLength: 0)
+            EqualizerBars(isPlaying: player.track?.isPlaying ?? false)
+                .frame(width: max(notchHeight - 14, 10), height: max(notchHeight - 16, 8))
+        }
+        .padding(.horizontal, NotchMetrics.closedTopRadius + 8)
+        .frame(maxHeight: .infinity)
+    }
+}
+
+struct OpenNotchView: View {
+    @ObservedObject var model: NotchModel
+    let notchHeight: CGFloat
+
+    var body: some View {
+        VStack(spacing: 6) {
+            header
+                .frame(height: max(notchHeight, 28))
+            Group {
+                switch model.tab {
+                case .nowPlaying:
+                    NowPlayingView(player: model.nowPlaying)
+                case .shelf:
+                    ShelfView(shelf: model.shelf, isTargeted: $model.isDropTargeted)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .padding(.horizontal, NotchMetrics.openTopRadius + 18)
+        .padding(.bottom, 16)
+        .foregroundStyle(.white)
+    }
+
+    /// Sits beside the camera: tabs on the left, actions on the right.
+    private var header: some View {
+        HStack(spacing: 4) {
+            TabButton(symbol: "music.note", help: "Now Playing", isSelected: model.tab == .nowPlaying) {
+                model.tab = .nowPlaying
+            }
+            TabButton(symbol: "tray.full", help: "Shelf", isSelected: model.tab == .shelf) {
+                model.tab = .shelf
+            }
+            Spacer()
+            if model.tab == .shelf {
+                ShelfClearButton(shelf: model.shelf)
+            }
+        }
+    }
+}
+
+struct TabButton: View {
+    let symbol: String
+    let help: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .semibold))
+                .frame(width: 32, height: 22)
+                .background(Capsule().fill(Color.white.opacity(isSelected ? 0.18 : 0)))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Color.white.opacity(isSelected ? 1 : 0.55))
+        .help(help)
+    }
+}
+
+struct EqualizerBars: View {
+    let isPlaying: Bool
+    var color = Color(red: 0.43, green: 0.9, blue: 0.66)
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 20, paused: !isPlaying)) { context in
+            let time = context.date.timeIntervalSinceReferenceDate
+            GeometryReader { proxy in
+                HStack(alignment: .center, spacing: proxy.size.width * 0.14) {
+                    ForEach(0..<4, id: \.self) { index in
+                        Capsule()
+                            .fill(color)
+                            .frame(height: proxy.size.height * level(index: index, time: time))
+                    }
+                }
+                .frame(width: proxy.size.width, height: proxy.size.height)
+            }
+        }
+    }
+
+    private func level(index: Int, time: TimeInterval) -> CGFloat {
+        guard isPlaying else { return 0.25 }
+        let speed = 2.2 + Double(index) * 0.7
+        return CGFloat(0.3 + 0.7 * abs(sin(time * speed + Double(index))))
+    }
+}
+
+struct ArtworkView: View {
+    let image: NSImage?
+    let size: CGFloat
+    var cornerRadius: CGFloat = 10
+
+    var body: some View {
+        ZStack {
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } else {
+                Color.white.opacity(0.08)
+                Image(systemName: "music.note")
+                    .font(.system(size: size * 0.4))
+                    .foregroundStyle(Color.white.opacity(0.5))
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
+}
+
+struct EmptyStateView: View {
+    let symbol: String
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Image(systemName: symbol)
+                .font(.system(size: 24))
+                .foregroundStyle(.secondary)
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+            Text(subtitle)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
