@@ -39,15 +39,30 @@ struct Banner: Identifiable, Equatable {
         case track
         /// A mirrored notification from another app.
         case notification(bundleIdentifier: String)
+        /// Headphones connected (AirPods, Beats, …).
+        case device
     }
 
     let id = UUID()
     var kind: Kind
     var icon: NSImage?
+    /// SF Symbol shown instead of `icon` (e.g. AirPods).
+    var symbol: String?
     var title: String
     var subtitle: String
 
     static func == (lhs: Banner, rhs: Banner) -> Bool { lhs.id == rhs.id }
+}
+
+/// Short status beside the camera: charging, unplugged, low battery, Low Power Mode.
+struct StatusPill: Equatable {
+    var symbol: String
+    var tint: Color
+    var label: String
+    var value: String
+    /// Battery fill (0…1) for the animated battery glyph; nil hides the glyph.
+    var batteryLevel: Double?
+    var isCharging = false
 }
 
 /// What the closed notch shows, most important first.
@@ -55,6 +70,7 @@ enum ClosedPresentation: Equatable {
     case idle
     case activity(withLyrics: Bool)
     case hud(HUDState)
+    case status(StatusPill)
     case banner(Banner)
 }
 
@@ -66,6 +82,7 @@ final class NotchModel: ObservableObject {
     @Published var tab: NotchTab = .nowPlaying
     @Published var isDropTargeted = false
     @Published var hud: HUDState?
+    @Published var status: StatusPill?
     @Published var banner: Banner?
     /// Music playing: artwork + bars beside the camera.
     @Published private(set) var showsActivity = false
@@ -75,6 +92,7 @@ final class NotchModel: ObservableObject {
     let nowPlaying: NowPlayingService
     let lyrics: LyricsService
     let shelf: ShelfStore
+    let weather: WeatherService
 
     var onBannerTap: ((Banner) -> Void)?
 
@@ -82,10 +100,11 @@ final class NotchModel: ObservableObject {
     private var hasSyncedLyrics = false
     private var cancellables: Set<AnyCancellable> = []
 
-    init(nowPlaying: NowPlayingService, lyrics: LyricsService, shelf: ShelfStore) {
+    init(nowPlaying: NowPlayingService, lyrics: LyricsService, shelf: ShelfStore, weather: WeatherService) {
         self.nowPlaying = nowPlaying
         self.lyrics = lyrics
         self.shelf = shelf
+        self.weather = weather
 
         nowPlaying.$track
             .map { $0?.isPlaying ?? false }
@@ -122,6 +141,7 @@ final class NotchModel: ObservableObject {
 
     var closedPresentation: ClosedPresentation {
         if let hud { return .hud(hud) }
+        if let status { return .status(status) }
         if let banner { return .banner(banner) }
         if showsActivity { return .activity(withLyrics: showsClosedLyrics) }
         return .idle
@@ -152,6 +172,8 @@ final class NotchModel: ObservableObject {
                 : CGSize(width: width, height: height)
         case .hud:
             return CGSize(width: base + 240, height: height)
+        case .status:
+            return CGSize(width: base + 260, height: height)
         case .banner:
             return CGSize(width: max(base + 160, 420), height: height + 66)
         }

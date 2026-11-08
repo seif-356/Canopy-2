@@ -5,6 +5,8 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var nowPlaying: NowPlayingService
     @ObservedObject var notifications: NotificationMirror
+    @ObservedObject var weather: WeatherService
+    @ObservedObject var headphones: AirPodsMonitor
 
     var body: some View {
         TabView {
@@ -16,12 +18,14 @@ struct SettingsView: View {
                 .tabItem { Label("Notifications", systemImage: "bell.badge") }
             HUDSettings()
                 .tabItem { Label("Volume & Brightness", systemImage: "speaker.wave.2") }
+            StatusSettings(weather: weather, headphones: headphones)
+                .tabItem { Label("Status", systemImage: "battery.75percent") }
             WidgetSettings()
                 .tabItem { Label("Widget", systemImage: "rectangle.on.rectangle") }
             AboutSettings()
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
-        .frame(width: 560, height: 470)
+        .frame(width: 620, height: 500)
         .onAppear { NSApp.activate() }
     }
 }
@@ -176,12 +180,60 @@ private struct HUDSettings: View {
     }
 }
 
+private struct StatusSettings: View {
+    @ObservedObject var weather: WeatherService
+    @ObservedObject var headphones: AirPodsMonitor
+    @AppStorage(Prefs.batteryAlerts) private var batteryAlerts = true
+    @AppStorage(Prefs.headphoneBanner) private var headphoneBanner = true
+    @AppStorage(Prefs.weatherEnabled) private var weatherEnabled = true
+    @AppStorage(Prefs.weatherUnit) private var weatherUnit = TemperatureUnit.localDefault.rawValue
+    @AppStorage(Prefs.weatherCity) private var weatherCity = ""
+
+    var body: some View {
+        Form {
+            Section("Battery") {
+                Toggle("Show charging, low battery and Low Power Mode in the notch", isOn: $batteryAlerts)
+            }
+            Section {
+                Toggle("Show AirPods and headphones when they connect", isOn: $headphoneBanner)
+                LabeledContent("Connected", value: headphones.connected.map { "\($0.name) — \($0.summary)" } ?? "None")
+            } header: {
+                Text("AirPods & headphones")
+            } footer: {
+                Text("Battery levels come from macOS's Bluetooth report; macOS may ask to allow Bluetooth access.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section {
+                Toggle("Show the weather", isOn: $weatherEnabled)
+                Picker("Units", selection: $weatherUnit) {
+                    ForEach(TemperatureUnit.allCases) { unit in
+                        Text(unit.title).tag(unit.rawValue)
+                    }
+                }
+                .disabled(!weatherEnabled)
+                TextField("City", text: $weatherCity, prompt: Text("Leave empty to use your location"))
+                    .disabled(!weatherEnabled)
+                LabeledContent("Status", value: weather.status)
+            } header: {
+                Text("Weather")
+            } footer: {
+                Text("Weather from Open-Meteo (open-meteo.com), free and without an account. Only your approximate location or the city you type is sent.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+    }
+}
+
 private struct WidgetSettings: View {
     @AppStorage(Prefs.widgetEnabled) private var widgetEnabled = false
     @AppStorage(Prefs.widgetPreset) private var widgetPreset = WidgetPreset.lockScreen.rawValue
     @AppStorage(Prefs.lockScreenWidget) private var lockScreenWidget = false
     @AppStorage(Prefs.lockScreenPosition) private var lockScreenPosition = LockScreenPosition.center.rawValue
     @AppStorage(Prefs.lockScreenBackground) private var lockScreenBackground = true
+    @AppStorage(Prefs.lockScreenInfoRow) private var lockScreenInfoRow = true
 
     var body: some View {
         Form {
@@ -207,6 +259,8 @@ private struct WidgetSettings: View {
                 }
                 .disabled(!lockScreenWidget)
                 Toggle("Use the album art as the lock screen background", isOn: $lockScreenBackground)
+                    .disabled(!lockScreenWidget)
+                Toggle("Show weather, battery and AirPods under the clock", isOn: $lockScreenInfoRow)
                     .disabled(!lockScreenWidget)
             } footer: {
                 Text("""

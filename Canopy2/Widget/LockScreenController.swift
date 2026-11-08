@@ -15,15 +15,21 @@ final class LockScreenController {
 
     private let player: NowPlayingService
     private let lyrics: LyricsService
+    private let battery: BatteryMonitor
+    private let headphones: AirPodsMonitor
+    private let weather: WeatherService
     private let background = LockScreenBackground()
     private var window: NSWindow?
     private var observers: [NSObjectProtocol] = []
     private var cancellables: Set<AnyCancellable> = []
     private var isLocked = false
 
-    init(player: NowPlayingService, lyrics: LyricsService) {
+    init(player: NowPlayingService, lyrics: LyricsService, battery: BatteryMonitor, headphones: AirPodsMonitor, weather: WeatherService) {
         self.player = player
         self.lyrics = lyrics
+        self.battery = battery
+        self.headphones = headphones
+        self.weather = weather
     }
 
     func start() {
@@ -70,8 +76,12 @@ final class LockScreenController {
         let host = FirstClickHostingView(rootView: LockScreenView(
             player: player,
             lyrics: lyrics,
+            battery: battery,
+            headphones: headphones,
+            weather: weather,
             artworkSide: LockScreenView.artworkSide(for: screenFrame),
-            showsArtwork: position == .center
+            showsArtwork: position == .center,
+            showsInfoRow: position == .center && Prefs.bool(Prefs.lockScreenInfoRow)
         ))
         host.sizingOptions = []
         let size = host.fittingSize

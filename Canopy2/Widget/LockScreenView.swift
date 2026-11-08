@@ -5,16 +5,20 @@ import SwiftUI
 struct LockScreenView: View {
     @ObservedObject var player: NowPlayingService
     @ObservedObject var lyrics: LyricsService
+    @ObservedObject var battery: BatteryMonitor
+    @ObservedObject var headphones: AirPodsMonitor
+    @ObservedObject var weather: WeatherService
     let artworkSide: CGFloat
     let showsArtwork: Bool
+    let showsInfoRow: Bool
 
     /// Share of the screen height taken by the clock at the top of the lock screen.
     static let clockFraction: CGFloat = 0.26
     /// Share kept free at the bottom for the user picture, name and password field.
     static let userAreaFraction: CGFloat = 0.24
     static let cardWidth: CGFloat = 290
-    /// Card height plus spacing and padding, used to size the artwork to fit.
-    private static let chromeHeight: CGFloat = 190
+    /// Card, info row, spacing and padding, used to size the artwork to fit.
+    private static let chromeHeight: CGFloat = 230
 
     /// Largest artwork that fits between the clock and the user picture.
     static func artworkSide(for screen: NSRect) -> CGFloat {
@@ -25,6 +29,9 @@ struct LockScreenView: View {
 
     var body: some View {
         VStack(spacing: 18) {
+            if showsInfoRow {
+                LockScreenInfoRow(battery: battery, headphones: headphones, weather: weather)
+            }
             if showsArtwork {
                 ArtworkView(image: player.artwork, size: artworkSide, cornerRadius: artworkSide * 0.05)
                     .shadow(color: .black.opacity(0.45), radius: 24, y: 12)
@@ -95,5 +102,49 @@ struct LockScreenControls: View {
         .padding(.top, 10)
         .padding(.bottom, 8)
         .modifier(GlassBackground(palette: player.palette, hasArtwork: player.artwork != nil, cornerRadius: 20))
+    }
+}
+
+/// Weather, battery and headphones in one live row beneath the clock.
+struct LockScreenInfoRow: View {
+    @ObservedObject var battery: BatteryMonitor
+    @ObservedObject var headphones: AirPodsMonitor
+    @ObservedObject var weather: WeatherService
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if let now = weather.current {
+                InfoChip {
+                    Image(systemName: now.symbol).symbolRenderingMode(.multicolor)
+                    Text(now.rounded)
+                }
+            }
+            if let state = battery.state {
+                InfoChip {
+                    Image(systemName: state.symbol)
+                        .foregroundStyle(state.isPluggedIn ? Color.green : (state.percent <= 20 ? Color.red : Color.white))
+                    Text("\(state.percent)%")
+                }
+            }
+            if let device = headphones.connected {
+                InfoChip {
+                    Image(systemName: device.symbol)
+                    if let level = device.level { Text("\(level)%") }
+                }
+            }
+        }
+        .font(.system(size: 12, weight: .semibold).monospacedDigit())
+    }
+}
+
+private struct InfoChip<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        HStack(spacing: 5) { content }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Capsule().fill(Color.black.opacity(0.28)))
+            .overlay(Capsule().strokeBorder(Color.white.opacity(0.15), lineWidth: 1))
     }
 }

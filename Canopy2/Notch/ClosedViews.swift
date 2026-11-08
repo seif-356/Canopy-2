@@ -110,6 +110,10 @@ struct BannerView: View {
     private var icon: some View {
         if banner.kind == .track {
             ArtworkView(image: player.artwork ?? banner.icon, size: 40, cornerRadius: 8)
+        } else if let symbol = banner.symbol {
+            Image(systemName: symbol)
+                .font(.system(size: 24, weight: .regular))
+                .frame(width: 40, height: 40)
         } else if let image = banner.icon {
             Image(nsImage: image)
                 .resizable()
@@ -118,6 +122,105 @@ struct BannerView: View {
             Image(systemName: "bell.fill")
                 .font(.system(size: 20))
                 .frame(width: 40, height: 40)
+        }
+    }
+}
+
+/// Charging / unplugged / low battery / Low Power Mode, beside the camera.
+struct StatusPillView: View {
+    let pill: StatusPill
+    let notchHeight: CGFloat
+
+    @State private var pulse = false
+
+    var body: some View {
+        HStack {
+            HStack(spacing: 6) {
+                Image(systemName: pill.symbol)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(pill.tint)
+                    .scaleEffect(pill.isCharging && pulse ? 1.15 : 1)
+                Text(pill.label)
+                    .font(.system(size: 12, weight: .semibold))
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            HStack(spacing: 6) {
+                Text(pill.value)
+                    .font(.system(size: 12, weight: .semibold).monospacedDigit())
+                    .foregroundStyle(pill.tint)
+                if let level = pill.batteryLevel {
+                    BatteryGlyph(level: level, tint: pill.tint, animateFill: pill.isCharging)
+                        .frame(width: 26, height: 12)
+                }
+            }
+        }
+        .padding(.horizontal, NotchMetrics.closedTopRadius + 12)
+        .frame(height: notchHeight)
+        .foregroundStyle(.white)
+        .onAppear {
+            guard pill.isCharging else { return }
+            withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) { pulse = true }
+        }
+    }
+}
+
+/// Battery outline whose fill sweeps up to the current level when charging.
+struct BatteryGlyph: View {
+    let level: Double
+    let tint: Color
+    var animateFill = false
+
+    @State private var shownLevel: Double = 0
+
+    var body: some View {
+        GeometryReader { proxy in
+            let capWidth = proxy.size.width * 0.08
+            let bodyWidth = proxy.size.width - capWidth - 1
+            HStack(spacing: 1) {
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3.5, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.45), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                        .fill(tint)
+                        .frame(width: max(0, (bodyWidth - 4) * CGFloat(shownLevel)))
+                        .padding(2)
+                }
+                .frame(width: bodyWidth)
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(Color.white.opacity(0.45))
+                    .frame(width: capWidth, height: proxy.size.height * 0.4)
+            }
+        }
+        .onAppear {
+            if animateFill {
+                shownLevel = 0
+                withAnimation(.easeOut(duration: 1.1)) { shownLevel = level }
+            } else {
+                shownLevel = level
+            }
+        }
+        .onChange(of: level) { _, newValue in
+            withAnimation(.easeOut(duration: 0.4)) { shownLevel = newValue }
+        }
+    }
+}
+
+/// Current temperature, shown faintly beside the camera in the open notch.
+struct WeatherBadge: View {
+    @ObservedObject var weather: WeatherService
+
+    var body: some View {
+        if let now = weather.current {
+            HStack(spacing: 4) {
+                Image(systemName: now.symbol)
+                    .symbolRenderingMode(.multicolor)
+                    .font(.system(size: 11))
+                Text(now.rounded)
+                    .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                    .foregroundStyle(Color.white.opacity(0.6))
+            }
+            .help(now.place.isEmpty ? "Weather" : now.place)
         }
     }
 }

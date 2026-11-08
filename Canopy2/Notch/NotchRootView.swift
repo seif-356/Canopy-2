@@ -49,6 +49,9 @@ struct NotchRootView: View {
                 case .hud(let state):
                     HUDView(state: state, notchHeight: notchHeight, tint: model.nowPlaying.palette.primaryColor)
                         .transition(.opacity)
+                case .status(let pill):
+                    StatusPillView(pill: pill, notchHeight: notchHeight)
+                        .transition(.opacity)
                 case .banner(let banner):
                     BannerView(banner: banner, player: model.nowPlaying, notchHeight: notchHeight)
                         .contentShape(Rectangle())
@@ -106,6 +109,7 @@ struct OpenNotchView: View {
             if model.tab == .shelf {
                 ShelfClearButton(shelf: model.shelf)
             }
+            WeatherBadge(weather: model.weather)
             Menu {
                 Button("Settings…") { SettingsWindowController.shared.show() }
                 Divider()

@@ -25,6 +25,14 @@ enum Prefs {
     static let lockScreenWidget = "lockScreenWidget"
     static let lockScreenPosition = "lockScreenPosition" // LockScreenPosition raw value
     static let lockScreenBackground = "lockScreenBackground"
+    static let lockScreenInfoRow = "lockScreenInfoRow"
+
+    // Status
+    static let batteryAlerts = "batteryAlerts"
+    static let headphoneBanner = "headphoneBanner"
+    static let weatherEnabled = "weatherEnabled"
+    static let weatherUnit = "weatherUnit"               // TemperatureUnit raw value
+    static let weatherCity = "weatherCity"               // empty = use Location Services
 
     // Shelf
     static let shelfPaths = "shelfPaths"
@@ -45,6 +53,12 @@ enum Prefs {
             lockScreenWidget: false,
             lockScreenPosition: LockScreenPosition.center.rawValue,
             lockScreenBackground: true,
+            lockScreenInfoRow: true,
+            batteryAlerts: true,
+            headphoneBanner: true,
+            weatherEnabled: true,
+            weatherUnit: TemperatureUnit.localDefault.rawValue,
+            weatherCity: "",
         ])
     }
 
@@ -64,6 +78,7 @@ enum Prefs {
         let keys = [
             showOnNotchless, mediaSource, showMusicActivity, trackBanner, lyricsEnabled, closedLyrics,
             notificationMirroring, volumeHUD, replaceSystemHUD, widgetEnabled, widgetPreset, lockScreenWidget,
+            batteryAlerts, headphoneBanner, weatherEnabled, weatherUnit, weatherCity,
         ]
         var result: [String: String] = [:]
         for key in keys {

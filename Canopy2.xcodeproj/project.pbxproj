@@ -189,6 +189,9 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Canopy 2 reads the current song from Music and Spotify and sends play, pause and skip commands to them.";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Canopy 2 shows the battery level of your AirPods and headphones when they connect.";
+				INFOPLIST_KEY_NSLocationUsageDescription = "Canopy 2 uses your approximate location to show the local weather.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Canopy 2 uses your approximate location to show the local weather.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -218,6 +221,9 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Canopy 2 reads the current song from Music and Spotify and sends play, pause and skip commands to them.";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Canopy 2 shows the battery level of your AirPods and headphones when they connect.";
+				INFOPLIST_KEY_NSLocationUsageDescription = "Canopy 2 uses your approximate location to show the local weather.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Canopy 2 uses your approximate location to show the local weather.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

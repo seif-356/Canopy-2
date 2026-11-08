@@ -14,6 +14,9 @@ final class NotchController {
     let lyrics: LyricsService
     let shelf: ShelfStore
     let notifications: NotificationMirror
+    let battery = BatteryMonitor()
+    let headphones = AirPodsMonitor()
+    let weather = WeatherService()
 
     private let volumeObserver = VolumeObserver()
     private let keyTap = MediaKeyTap()
@@ -27,6 +30,8 @@ final class NotchController {
     private var pendingOpen: Task<Void, Never>?
     private var pendingClose: Task<Void, Never>?
     private var hudHideTask: Task<Void, Never>?
+    private var statusHideTask: Task<Void, Never>?
+    private var weatherConfigureTask: Task<Void, Never>?
     private var bannerHideTask: Task<Void, Never>?
     private var keyTapRetryTimer: Timer?
     /// Drag pasteboard change count at the last mouse-down. If it changes while the
@@ -46,8 +51,10 @@ final class NotchController {
         self.shelf = shelf
         notifications = NotificationMirror()
         widget = WidgetController(player: nowPlaying, lyrics: lyrics)
-        lockScreen = LockScreenController(player: nowPlaying, lyrics: lyrics)
-        model = NotchModel(nowPlaying: nowPlaying, lyrics: lyrics, shelf: shelf)
+        lockScreen = LockScreenController(
+            player: nowPlaying, lyrics: lyrics, battery: battery, headphones: headphones, weather: weather
+        )
+        model = NotchModel(nowPlaying: nowPlaying, lyrics: lyrics, shelf: shelf, weather: weather)
     }
 
     func start() {
@@ -85,7 +92,15 @@ final class NotchController {
         model.onBannerTap = { [weak self] banner in
             self?.bannerTapped(banner)
         }
+        battery.onEvent = { [weak self] event in
+            self?.batteryEvent(event)
+        }
+        headphones.onConnect = { [weak self] status in
+            self?.headphonesConnected(status)
+        }
 
+        battery.start()
+        headphones.start()
         lockScreen.start()
         nowPlaying.start()
         applyPreferences()
@@ -122,6 +137,16 @@ final class NotchController {
             )
         }
         if changed(Prefs.lockScreenWidget) { lockScreen.isEnabled = Prefs.bool(Prefs.lockScreenWidget) }
+        if changed(Prefs.weatherEnabled) || changed(Prefs.weatherUnit) || changed(Prefs.weatherCity) {
+            // Wait for typing in the city field to settle before looking it up.
+            weatherConfigureTask?.cancel()
+            let delay: Duration = isFirst ? .zero : .seconds(1)
+            weatherConfigureTask = Task { [weak self] in
+                try? await Task.sleep(for: delay)
+                guard !Task.isCancelled else { return }
+                self?.weather.configure()
+            }
+        }
     }
 
     // MARK: - Layout
@@ -176,6 +201,7 @@ final class NotchController {
         showBanner(Banner(
             kind: .track,
             icon: AppIcons.icon(for: track.bundleIdentifier),
+            symbol: nil,
             title: track.title,
             subtitle: track.artist.isEmpty ? track.appName : track.artist
         ))
@@ -187,6 +213,7 @@ final class NotchController {
         showBanner(Banner(
             kind: .notification(bundleIdentifier: notification.bundleIdentifier),
             icon: AppIcons.icon(for: notification.bundleIdentifier),
+            symbol: nil,
             title: notification.title.isEmpty ? appName : notification.title,
             subtitle: notification.title.isEmpty ? details : (details.isEmpty ? appName : details)
         ))
@@ -225,7 +252,50 @@ final class NotchController {
             if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) {
                 NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
             }
+        case .device:
+            break
         }
+    }
+
+    // MARK: - Battery & headphones
+
+    private func batteryEvent(_ event: BatteryEvent) {
+        guard Prefs.bool(Prefs.batteryAlerts) else { return }
+        let green = Color(red: 0.3, green: 0.85, blue: 0.4)
+        switch event {
+        case .pluggedIn(let state):
+            showStatus(StatusPill(symbol: "bolt.fill", tint: green, label: "Charging", value: "\(state.percent)%",
+                                  batteryLevel: Double(state.percent) / 100, isCharging: true))
+        case .unplugged(let state):
+            showStatus(StatusPill(symbol: state.symbol, tint: .white, label: "On Battery", value: "\(state.percent)%",
+                                  batteryLevel: Double(state.percent) / 100))
+        case .full(let state):
+            showStatus(StatusPill(symbol: "checkmark.circle.fill", tint: green, label: "Charged", value: "\(state.percent)%",
+                                  batteryLevel: 1))
+        case .low(let state):
+            showStatus(StatusPill(symbol: "exclamationmark.triangle.fill", tint: .red, label: "Low Battery",
+                                  value: "\(state.percent)%", batteryLevel: Double(state.percent) / 100))
+        case .lowPowerMode(let state):
+            showStatus(StatusPill(symbol: "leaf.fill", tint: .yellow,
+                                  label: state.isLowPowerMode ? "Low Power On" : "Low Power Off",
+                                  value: "\(state.percent)%", batteryLevel: Double(state.percent) / 100))
+        }
+    }
+
+    private func showStatus(_ pill: StatusPill) {
+        guard model.geometry != nil, !model.isOpen else { return }
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) { model.status = pill }
+        statusHideTask?.cancel()
+        statusHideTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled, let self else { return }
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) { self.model.status = nil }
+        }
+    }
+
+    private func headphonesConnected(_ status: HeadphoneStatus) {
+        guard Prefs.bool(Prefs.headphoneBanner) else { return }
+        showBanner(Banner(kind: .device, icon: nil, symbol: status.symbol, title: status.name, subtitle: status.summary))
     }
 
     // MARK: - Volume & brightness
@@ -402,6 +472,8 @@ final class NotchController {
         hideBanner()
         hudHideTask?.cancel()
         model.hud = nil
+        statusHideTask?.cancel()
+        model.status = nil
         NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
         withAnimation(.spring(response: 0.38, dampingFraction: 0.8)) {
             model.isOpen = true

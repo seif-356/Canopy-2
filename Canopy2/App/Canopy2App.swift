@@ -29,10 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Prefs.registerDefaults()
         NSApp.setActivationPolicy(.accessory)
         let controller = NotchController()
-        SettingsWindowController.shared.configure(
-            nowPlaying: controller.nowPlaying,
-            notifications: controller.notifications
-        )
+        SettingsWindowController.shared.configure(controller: controller)
         controller.start()
         controller.showHello()
         notchController = controller
