@@ -62,6 +62,17 @@ jobs:
             DEVELOPMENT_TEAM= \
             build
 
+      - name: Embed MediaRemote adapter (now playing from any app)
+        run: scripts/embed-mediaremote-adapter.sh "$APP"
+
+      - name: Check the adapter loads (informational)
+        continue-on-error: true
+        run: |
+          R="$APP/Contents"
+          /usr/bin/perl "$R/Resources/mediaremote-adapter.pl" "$R/Frameworks/MediaRemoteAdapter.framework" get --no-artwork || true
+          /usr/bin/perl "$R/Resources/mediaremote-adapter.pl" "$R/Frameworks/MediaRemoteAdapter.framework" "$R/MacOS/MediaRemoteAdapterTestClient" test \
+            && echo "adapter self-test: OK" || echo "adapter self-test failed (expected on a headless runner)"
+
       - name: Verify app
         run: |
           BIN="$APP/Contents/MacOS/Canopy2"
@@ -81,6 +92,9 @@ jobs:
           /usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$APP/Contents/Info.plist"
           [[ "$(/usr/libexec/PlistBuddy -c "Print LSUIElement" "$APP/Contents/Info.plist")" == "true" ]]
           /usr/libexec/PlistBuddy -c "Print NSAppleEventsUsageDescription" "$APP/Contents/Info.plist"
+          test -d "$APP/Contents/Frameworks/MediaRemoteAdapter.framework"
+          test -f "$APP/Contents/Resources/mediaremote-adapter.pl"
+          test -x "$APP/Contents/MacOS/MediaRemoteAdapterTestClient"
           codesign --verify --deep --strict --verbose=2 "$APP"
           codesign -dv "$APP" > "$RUNNER_TEMP/codesign.txt" 2>&1
           cat "$RUNNER_TEMP/codesign.txt"
