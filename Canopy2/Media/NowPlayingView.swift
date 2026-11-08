@@ -78,13 +78,15 @@ struct ScrubBar: View {
     let position: Double
     let duration: Double
     let tint: Color
+    /// Right label shows time left ("-1:26") instead of the total.
+    var showsRemaining = false
     let onSeek: (Double) -> Void
 
     @State private var dragFraction: Double?
 
     var body: some View {
         HStack(spacing: 8) {
-            Text(Self.format(dragFraction.map { $0 * duration } ?? position))
+            Text(Self.format(current))
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.white.opacity(0.15))
@@ -108,11 +110,20 @@ struct ScrubBar: View {
             }
             .frame(height: 14)
             .allowsHitTesting(duration > 0)
-            Text(duration > 0 ? Self.format(duration) : "LIVE")
+            Text(rightLabel)
         }
         .font(.system(size: 10, weight: .medium).monospacedDigit())
         .foregroundStyle(.secondary)
         .animation(.easeOut(duration: 0.12), value: dragFraction == nil)
+    }
+
+    private var current: Double {
+        dragFraction.map { $0 * duration } ?? position
+    }
+
+    private var rightLabel: String {
+        guard duration > 0 else { return "LIVE" }
+        return showsRemaining ? "-" + Self.format(max(0, duration - current)) : Self.format(duration)
     }
 
     private var fraction: Double {

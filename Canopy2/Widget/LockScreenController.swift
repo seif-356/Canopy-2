@@ -37,19 +37,30 @@ final class LockScreenController {
               let screen = NSScreen.screens.first,
               let skyLight = SkyLightBridge.shared else { return }
 
-        let size = WidgetView.size(for: .nowPlaying)
         let position = LockScreenPosition(rawValue: Prefs.string(Prefs.lockScreenPosition)) ?? .center
-        let frame = position.frame(for: size, on: screen.frame)
+        let screenFrame = screen.frame
+        let host = FirstClickHostingView(rootView: LockScreenView(
+            player: player,
+            lyrics: lyrics,
+            artworkSide: LockScreenView.artworkSide(for: screenFrame),
+            showsArtwork: position == .center
+        ))
+        host.sizingOptions = []
+        let size = host.fittingSize
+        let frame: NSRect
+        if position == .center {
+            // Top edge just below the clock.
+            let top = screenFrame.maxY - screenFrame.height * LockScreenView.clockFraction
+            frame = NSRect(x: screenFrame.midX - size.width / 2, y: top - size.height, width: size.width, height: size.height)
+        } else {
+            frame = position.frame(for: size, on: screenFrame)
+        }
         let window = NSWindow(contentRect: frame, styleMask: [.borderless], backing: .buffered, defer: false)
         window.isOpaque = false
         window.backgroundColor = .clear
-        window.hasShadow = true
+        window.hasShadow = false // the view draws its own shadows
         window.isReleasedWhenClosed = false
         window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
-        let host = FirstClickHostingView(
-            rootView: WidgetView(player: player, lyrics: lyrics, preset: .nowPlaying, showsDragHandle: false)
-        )
-        host.sizingOptions = []
         window.contentView = host
         window.orderFrontRegardless()
         skyLight.moveToLockScreen(window)

@@ -171,9 +171,10 @@ struct LyricsCard: View {
 struct GlassBackground: ViewModifier {
     let palette: ArtworkPalette
     let hasArtwork: Bool
+    var cornerRadius: CGFloat = 28
 
     func body(content: Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 28, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         #if compiler(>=6.2)
         if #available(macOS 26.0, *) {
             return AnyView(

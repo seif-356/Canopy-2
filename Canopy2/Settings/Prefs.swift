@@ -105,8 +105,9 @@ enum WidgetPreset: String, CaseIterable, Identifiable {
     }
 }
 
-/// Where the lock-screen card goes. The default avoids the clock (top centre)
-/// and the user picture and password field (bottom centre).
+/// Where the lock-screen player goes. "Under the clock" shows big artwork with the
+/// controls below it, sized to stay between the clock and the user picture.
+/// The corners show just the controls.
 enum LockScreenPosition: String, CaseIterable, Identifiable {
     case center
     case topLeft
@@ -118,7 +119,7 @@ enum LockScreenPosition: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .center: "Middle of the screen"
+        case .center: "Under the clock (artwork + controls)"
         case .topLeft: "Top left"
         case .topRight: "Top right"
         case .bottomLeft: "Bottom left"
