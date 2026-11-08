@@ -21,21 +21,21 @@ struct NowPlayingView: View {
     /// Compact player: art, title and artist with live bars; thin progress bar;
     /// controls in the middle and the audio output on the right.
     private func playing(_ track: Track) -> some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 12) {
-                ArtworkView(image: player.artwork, size: 52, cornerRadius: 11)
+        VStack(spacing: 7) {
+            HStack(spacing: 10) {
+                ArtworkView(image: player.artwork, size: 44, cornerRadius: 9)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(track.title)
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold))
                         .lineLimit(1)
                     Text(track.artist.isEmpty ? track.appName : track.artist)
-                        .font(.system(size: 13))
+                        .font(.system(size: 12))
                         .foregroundStyle(Color.white.opacity(0.5))
                         .lineLimit(1)
                 }
                 Spacer(minLength: 8)
                 EqualizerBars(isPlaying: track.isPlaying, color: player.palette.primaryColor)
-                    .frame(width: 20, height: 13)
+                    .frame(width: 18, height: 12)
             }
             TimelineView(.periodic(from: .now, by: 0.25)) { context in
                 ScrubBar(position: track.elapsed(at: context.date), duration: track.duration, tint: Color.white.opacity(0.7)) { seconds in
@@ -44,22 +44,22 @@ struct NowPlayingView: View {
             }
             .frame(height: 14)
             HStack(spacing: 0) {
-                Color.clear.frame(width: 34, height: 1) // balances the output button
+                Color.clear.frame(width: 30, height: 1) // balances the output button
                 Spacer()
-                HStack(spacing: 24) {
-                    ControlButton(symbol: "backward.fill", size: 17, help: "Previous") {
+                HStack(spacing: 16) {
+                    ControlButton(symbol: "backward.fill", size: 15, help: "Previous") {
                         player.send(.previous)
                     }
-                    ControlButton(symbol: track.isPlaying ? "pause.fill" : "play.fill", size: 22, help: "Play/Pause") {
+                    ControlButton(symbol: track.isPlaying ? "pause.fill" : "play.fill", size: 20, help: "Play/Pause") {
                         player.send(.playPause)
                     }
-                    ControlButton(symbol: "forward.fill", size: 17, help: "Next") {
+                    ControlButton(symbol: "forward.fill", size: 15, help: "Next") {
                         player.send(.next)
                     }
                 }
                 Spacer()
                 AudioOutputButton()
-                    .frame(width: 34)
+                    .frame(width: 30)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

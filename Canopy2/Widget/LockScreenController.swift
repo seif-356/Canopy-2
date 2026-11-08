@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 /// EXPERIMENTAL: shows a Now Playing card on the lock screen while music plays.
@@ -14,8 +15,11 @@ final class LockScreenController {
 
     private let player: NowPlayingService
     private let lyrics: LyricsService
+    private let background = LockScreenBackground()
     private var window: NSWindow?
     private var observers: [NSObjectProtocol] = []
+    private var cancellables: Set<AnyCancellable> = []
+    private var isLocked = false
 
     init(player: NowPlayingService, lyrics: LyricsService) {
         self.player = player
@@ -23,16 +27,40 @@ final class LockScreenController {
     }
 
     func start() {
+        // Undo a background swap left behind if the app quit while locked.
+        background.restore()
+
+        // New song while locked: update the background to its artwork.
+        player.$artwork
+            .sink { [weak self] artwork in
+                MainActor.assumeIsolated { self?.artworkChanged(artwork) }
+            }
+            .store(in: &cancellables)
+
         let center = DistributedNotificationCenter.default()
         observers.append(center.addObserver(forName: Notification.Name("com.apple.screenIsLocked"), object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.screenLocked() }
         })
         observers.append(center.addObserver(forName: Notification.Name("com.apple.screenIsUnlocked"), object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.hide() }
+            MainActor.assumeIsolated { self?.screenUnlocked() }
         })
     }
 
+    private func screenUnlocked() {
+        isLocked = false
+        hide()
+    }
+
+    private func artworkChanged(_ artwork: NSImage?) {
+        guard isLocked, isEnabled, Prefs.bool(Prefs.lockScreenBackground), let artwork else { return }
+        background.apply(artwork: artwork, key: player.track?.identity ?? UUID().uuidString)
+    }
+
     private func screenLocked() {
+        isLocked = true
+        if isEnabled, Prefs.bool(Prefs.lockScreenBackground), player.track != nil, let artwork = player.artwork {
+            background.apply(artwork: artwork, key: player.track?.identity ?? UUID().uuidString)
+        }
         guard isEnabled, player.track != nil, window == nil,
               let screen = NSScreen.screens.first,
               let skyLight = SkyLightBridge.shared else { return }
@@ -70,6 +98,7 @@ final class LockScreenController {
     private func hide() {
         window?.orderOut(nil)
         window = nil
+        background.restore()
     }
 }
 

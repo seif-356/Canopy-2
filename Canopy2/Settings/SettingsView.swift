@@ -181,6 +181,7 @@ private struct WidgetSettings: View {
     @AppStorage(Prefs.widgetPreset) private var widgetPreset = WidgetPreset.lockScreen.rawValue
     @AppStorage(Prefs.lockScreenWidget) private var lockScreenWidget = false
     @AppStorage(Prefs.lockScreenPosition) private var lockScreenPosition = LockScreenPosition.center.rawValue
+    @AppStorage(Prefs.lockScreenBackground) private var lockScreenBackground = true
 
     var body: some View {
         Form {
@@ -205,9 +206,16 @@ private struct WidgetSettings: View {
                     }
                 }
                 .disabled(!lockScreenWidget)
+                Toggle("Use the album art as the lock screen background", isOn: $lockScreenBackground)
+                    .disabled(!lockScreenWidget)
             } footer: {
                 Text("""
-                    Uses private macOS APIs that Apple can change in any update. If your Mac \
+                    The background works by swapping your desktop picture (which macOS shows on \
+                    the lock screen) for a blurred copy of the artwork while the Mac is locked, \
+                    and putting yours back when you unlock. It's skipped if your desktop picture \
+                    isn't a regular image file, so aerial and live wallpapers are never touched.
+                    The lock screen player itself uses private macOS APIs that Apple can change \
+                    in any update. If your Mac \
                     misbehaves at the lock screen, turn this off.
                     """)
                     .font(.caption)

@@ -24,6 +24,7 @@ enum Prefs {
     static let widgetPreset = "widgetPreset"          // WidgetPreset raw value
     static let lockScreenWidget = "lockScreenWidget"
     static let lockScreenPosition = "lockScreenPosition" // LockScreenPosition raw value
+    static let lockScreenBackground = "lockScreenBackground"
 
     // Shelf
     static let shelfPaths = "shelfPaths"
@@ -43,6 +44,7 @@ enum Prefs {
             widgetPreset: WidgetPreset.lockScreen.rawValue,
             lockScreenWidget: false,
             lockScreenPosition: LockScreenPosition.center.rawValue,
+            lockScreenBackground: true,
         ])
     }
 

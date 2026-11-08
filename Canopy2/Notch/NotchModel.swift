@@ -131,9 +131,9 @@ final class NotchModel: ObservableObject {
     var openSize: CGSize {
         let notchHeight = geometry?.notchSize.height ?? 32
         switch tab {
-        case .nowPlaying: return CGSize(width: 420, height: notchHeight + 138)
-        case .lyrics: return CGSize(width: 420, height: notchHeight + 196)
-        case .shelf: return CGSize(width: 420, height: notchHeight + 132)
+        case .nowPlaying: return CGSize(width: 340, height: notchHeight + 126)
+        case .lyrics: return CGSize(width: 380, height: notchHeight + 196)
+        case .shelf: return CGSize(width: 380, height: notchHeight + 132)
         }
     }
 
