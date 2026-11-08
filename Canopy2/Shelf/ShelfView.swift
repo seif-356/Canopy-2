@@ -62,6 +62,9 @@ struct ShelfItemView: View {
         .contextMenu {
             Button("Open") { NSWorkspace.shared.open(url) }
             Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+            Button("AirDrop…") {
+                NSSharingService(named: .sendViaAirDrop)?.perform(withItems: [url])
+            }
             Button("Copy Path") {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(path, forType: .string)

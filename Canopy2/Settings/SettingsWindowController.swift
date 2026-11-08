@@ -8,10 +8,19 @@ final class SettingsWindowController {
     static let shared = SettingsWindowController()
 
     private var window: NSWindow?
+    private var nowPlaying: NowPlayingService?
+    private var notifications: NotificationMirror?
+
+    func configure(nowPlaying: NowPlayingService, notifications: NotificationMirror) {
+        self.nowPlaying = nowPlaying
+        self.notifications = notifications
+    }
 
     func show() {
+        guard let nowPlaying, let notifications else { return }
         if window == nil {
-            let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView()))
+            let view = SettingsView(nowPlaying: nowPlaying, notifications: notifications)
+            let window = NSWindow(contentViewController: NSHostingController(rootView: view))
             window.title = "Canopy 2 Settings"
             window.styleMask = [.titled, .closable]
             window.isReleasedWhenClosed = false

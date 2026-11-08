@@ -1,83 +1,5 @@
 import AppKit
 
-/// Media apps Canopy 2 can read and control through AppleScript (public API).
-enum MediaPlayer: String, CaseIterable, Sendable {
-    case music
-    case spotify
-
-    var bundleIdentifier: String {
-        switch self {
-        case .music: "com.apple.Music"
-        case .spotify: "com.spotify.client"
-        }
-    }
-
-    var appName: String {
-        switch self {
-        case .music: "Music"
-        case .spotify: "Spotify"
-        }
-    }
-
-    /// Posted by the app whenever playback changes.
-    var playbackNotification: Notification.Name {
-        switch self {
-        case .music: Notification.Name("com.apple.Music.playerInfo")
-        case .spotify: Notification.Name("com.spotify.client.PlaybackStateChanged")
-        }
-    }
-
-    /// Checked before every script: `tell application` would launch an app that isn't running.
-    var isRunning: Bool {
-        !NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier).isEmpty
-    }
-}
-
-enum MediaCommand: Sendable {
-    case playPause
-    case next
-    case previous
-
-    var verb: String {
-        switch self {
-        case .playPause: "playpause"
-        case .next: "next track"
-        case .previous: "previous track"
-        }
-    }
-}
-
-struct Track: Equatable, Sendable {
-    let player: MediaPlayer
-    let title: String
-    let artist: String
-    let album: String
-    /// Seconds.
-    let duration: Double
-    var isPlaying: Bool
-    /// Seconds, as of `positionDate`.
-    var position: Double
-    var positionDate: Date
-    /// Spotify only; Music artwork is fetched as raw data instead.
-    let artworkURL: String?
-
-    /// Playback position extrapolated to `date`, so the progress bar moves between polls.
-    func elapsed(at date: Date) -> Double {
-        guard isPlaying else { return position }
-        return min(duration, position + date.timeIntervalSince(positionDate))
-    }
-
-    var artworkKey: String {
-        "\(player.rawValue)|\(artist)|\(album)|\(title)"
-    }
-}
-
-struct PlayerSnapshot: Sendable {
-    var tracks: [Track] = []
-    /// A running player that refused our Apple events (Automation permission denied).
-    var blocked: MediaPlayer?
-}
-
 struct ScriptError: Error {
     let code: Int
     let message: String
@@ -86,8 +8,19 @@ struct ScriptError: Error {
     var isPermissionDenied: Bool { code == -1743 || code == -1744 }
 }
 
-/// Runs AppleScript through `/usr/bin/osascript` in a separate process, one at a time,
-/// on a background queue.
+struct ScriptedTrack: Sendable {
+    var track: Track
+    /// Spotify only; Music artwork is fetched as raw data instead.
+    var artworkURL: String?
+}
+
+struct ScriptSnapshot: Sendable {
+    var tracks: [ScriptedTrack] = []
+    var blocked: MediaPlayer?
+}
+
+/// AppleScript for Music and Spotify, run through `/usr/bin/osascript` in a separate
+/// process, one at a time, on a background queue.
 ///
 /// Not NSAppleScript: it isn't thread-safe and can crash the app when used off the
 /// main thread, and on the main thread it stalls the UI while a player is slow or a
@@ -98,7 +31,7 @@ enum MediaScripts {
     /// Field separator in script output (ASCII unit separator, never in song titles).
     private static let separator = "\u{1F}"
 
-    static func snapshot(of players: [MediaPlayer]) async -> PlayerSnapshot {
+    static func snapshot(of players: [MediaPlayer]) async -> ScriptSnapshot {
         await perform { fetchSnapshot(players) }
     }
 
@@ -106,7 +39,18 @@ enum MediaScripts {
         await perform {
             _ = run("""
                 if application "\(player.appName)" is running then
-                    tell application "\(player.appName)" to \(command.verb)
+                    tell application "\(player.appName)" to \(command.appleScriptVerb)
+                end if
+                """)
+        }
+    }
+
+    static func seek(_ player: MediaPlayer, to seconds: Double) async {
+        let position = String(format: "%.2f", max(0, seconds))
+        await perform {
+            _ = run("""
+                if application "\(player.appName)" is running then
+                    tell application "\(player.appName)" to set player position to \(position)
                 end if
                 """)
         }
@@ -128,8 +72,8 @@ enum MediaScripts {
         }
     }
 
-    private static func fetchSnapshot(_ players: [MediaPlayer]) -> PlayerSnapshot {
-        var snapshot = PlayerSnapshot()
+    private static func fetchSnapshot(_ players: [MediaPlayer]) -> ScriptSnapshot {
+        var snapshot = ScriptSnapshot()
         for player in players where player.isRunning {
             switch run(trackScript(for: player)) {
             case .success(let output):
@@ -143,42 +87,15 @@ enum MediaScripts {
         return snapshot
     }
 
-    /// Runs `source` with osascript and returns its stdout.
+    /// Runs `source` with osascript (script on stdin) and returns its stdout.
     /// `timeout` is generous so a first-run Automation prompt has time to be answered.
     private static func run(_ source: String, timeout: TimeInterval = 60) -> Result<String, ScriptError> {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        process.arguments = [] // no arguments: osascript reads the script from stdin
-        let input = Pipe()
-        let output = Pipe()
-        let errors = Pipe()
-        process.standardInput = input
-        process.standardOutput = output
-        process.standardError = errors
-
-        do {
-            try process.run()
-        } catch {
-            return .failure(ScriptError(code: 0, message: "Could not start osascript: \(error.localizedDescription)"))
-        }
-
-        let watchdog = DispatchWorkItem { [process] in
-            if process.isRunning { process.terminate() }
-        }
-        DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: watchdog)
-
-        input.fileHandleForWriting.write(Data(source.utf8))
-        try? input.fileHandleForWriting.close()
-        let stdout = output.fileHandleForReading.readDataToEndOfFile()
-        let stderr = errors.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        watchdog.cancel()
-
-        guard process.terminationStatus == 0 else {
-            let message = String(decoding: stderr, as: UTF8.self)
+        let result = ProcessRunner.run("/usr/bin/osascript", [], input: Data(source.utf8), timeout: timeout)
+        guard result.status == 0 else {
+            let message = result.errorOutput
             return .failure(ScriptError(code: errorCode(in: message), message: message))
         }
-        return .success(String(decoding: stdout, as: UTF8.self).trimmingCharacters(in: .newlines))
+        return .success(result.output.trimmingCharacters(in: .newlines))
     }
 
     /// osascript errors end like "... (-1743)".
@@ -189,7 +106,7 @@ enum MediaScripts {
 
     /// Script output: state, name, artist, album, duration (ms), position (ms)[, artwork url]
     /// joined by `separator`, or just "stopped".
-    private static func parseTrack(_ output: String, player: MediaPlayer) -> Track? {
+    private static func parseTrack(_ output: String, player: MediaPlayer) -> ScriptedTrack? {
         let fields = output.components(separatedBy: separator)
         guard fields.count >= 6, fields[0] != "stopped" else { return nil }
 
@@ -206,17 +123,17 @@ enum MediaScripts {
             artworkURL = "https://" + url.dropFirst("http://".count) // App Transport Security
         }
 
-        return Track(
-            player: player,
+        let track = Track(
+            bundleIdentifier: player.bundleIdentifier,
             title: text(1),
             artist: text(2),
             album: text(3),
             duration: seconds(4),
             isPlaying: fields[0] == "playing",
             position: seconds(5),
-            positionDate: Date(),
-            artworkURL: artworkURL?.isEmpty == true ? nil : artworkURL
+            positionDate: Date()
         )
+        return ScriptedTrack(track: track, artworkURL: artworkURL?.isEmpty == true ? nil : artworkURL)
     }
 
     /// osascript prints binary results as «data TYPE0123ABCD…» (4-char type, then hex).

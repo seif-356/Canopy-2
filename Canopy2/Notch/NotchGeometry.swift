@@ -2,7 +2,7 @@ import AppKit
 
 enum NotchMetrics {
     /// Size of the expanded notch.
-    static let openSize = CGSize(width: 540, height: 196)
+    static let openSize = CGSize(width: 580, height: 210)
     /// Extra transparent room around the open notch so its shadow isn't clipped.
     static let shadowPadding: CGFloat = 24
 

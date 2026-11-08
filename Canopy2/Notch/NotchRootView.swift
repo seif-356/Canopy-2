@@ -19,41 +19,48 @@ struct NotchRootView: View {
     }
 
     private func notch(_ geometry: NotchGeometry) -> some View {
-        let size = model.isOpen ? NotchMetrics.openSize : model.closedSize
+        let isOpen = model.isOpen
+        let presentation = model.closedPresentation
+        let size = isOpen ? NotchMetrics.openSize : model.closedSize
+        let expanded = isOpen || {
+            if case .banner = presentation { return true }
+            return false
+        }()
         let shape = NotchShape(
-            topRadius: model.isOpen ? NotchMetrics.openTopRadius : NotchMetrics.closedTopRadius,
-            bottomRadius: model.isOpen ? NotchMetrics.openBottomRadius : NotchMetrics.closedBottomRadius
+            topRadius: expanded ? NotchMetrics.openTopRadius : NotchMetrics.closedTopRadius,
+            bottomRadius: expanded ? NotchMetrics.openBottomRadius : NotchMetrics.closedBottomRadius
         )
+        let notchHeight = geometry.notchSize.height
+
         return ZStack(alignment: .top) {
-            if model.isOpen {
-                OpenNotchView(model: model, notchHeight: geometry.notchSize.height)
+            if isOpen {
+                OpenNotchView(model: model, notchHeight: notchHeight)
                     .transition(.opacity.combined(with: .scale(scale: 0.94, anchor: .top)))
-            } else if model.showsActivity {
-                ClosedActivityView(player: model.nowPlaying, notchHeight: geometry.notchSize.height)
+            } else {
+                switch presentation {
+                case .idle:
+                    EmptyView()
+                case .activity(let withLyrics):
+                    ClosedActivityView(
+                        player: model.nowPlaying, lyrics: model.lyrics,
+                        notchHeight: notchHeight, showsLyrics: withLyrics
+                    )
                     .transition(.opacity)
+                case .hud(let state):
+                    HUDView(state: state, notchHeight: notchHeight, tint: model.nowPlaying.palette.primaryColor)
+                        .transition(.opacity)
+                case .banner(let banner):
+                    BannerView(banner: banner, player: model.nowPlaying, notchHeight: notchHeight)
+                        .contentShape(Rectangle())
+                        .onTapGesture { model.onBannerTap?(banner) }
+                        .transition(.opacity)
+                }
             }
         }
         .frame(width: size.width, height: size.height, alignment: .top)
         .background(shape.fill(Color.black))
         .clipShape(shape)
-        .shadow(color: .black.opacity(model.isOpen ? 0.45 : 0), radius: 14, y: 4)
-    }
-}
-
-/// Artwork on the left of the camera, live bars on the right, while music plays.
-struct ClosedActivityView: View {
-    @ObservedObject var player: NowPlayingService
-    let notchHeight: CGFloat
-
-    var body: some View {
-        HStack {
-            ArtworkView(image: player.artwork, size: max(notchHeight - 10, 12), cornerRadius: 5)
-            Spacer(minLength: 0)
-            EqualizerBars(isPlaying: player.track?.isPlaying ?? false)
-                .frame(width: max(notchHeight - 14, 10), height: max(notchHeight - 16, 8))
-        }
-        .padding(.horizontal, NotchMetrics.closedTopRadius + 8)
-        .frame(maxHeight: .infinity)
+        .shadow(color: .black.opacity(expanded ? 0.45 : 0), radius: 14, y: 4)
     }
 }
 
@@ -68,7 +75,9 @@ struct OpenNotchView: View {
             Group {
                 switch model.tab {
                 case .nowPlaying:
-                    NowPlayingView(player: model.nowPlaying)
+                    NowPlayingView(player: model.nowPlaying, lyrics: model.lyrics)
+                case .lyrics:
+                    LyricsView(player: model.nowPlaying, lyrics: model.lyrics)
                 case .shelf:
                     ShelfView(shelf: model.shelf, isTargeted: $model.isDropTargeted)
                 }
@@ -85,6 +94,9 @@ struct OpenNotchView: View {
         HStack(spacing: 4) {
             TabButton(symbol: "music.note", help: "Now Playing", isSelected: model.tab == .nowPlaying) {
                 model.tab = .nowPlaying
+            }
+            TabButton(symbol: "quote.bubble", help: "Lyrics", isSelected: model.tab == .lyrics) {
+                model.tab = .lyrics
             }
             TabButton(symbol: "tray.full", help: "Shelf", isSelected: model.tab == .shelf) {
                 model.tab = .shelf
@@ -131,7 +143,7 @@ struct TabButton: View {
 
 struct EqualizerBars: View {
     let isPlaying: Bool
-    var color = Color(red: 0.43, green: 0.9, blue: 0.66)
+    var color = ArtworkPalette.default.primaryColor
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 20, paused: !isPlaying)) { context in
@@ -194,7 +206,24 @@ struct EmptyStateView: View {
             Text(subtitle)
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+enum AppIcons {
+    static func icon(for bundleIdentifier: String?) -> NSImage? {
+        guard let bundleIdentifier,
+              let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else { return nil }
+        return NSWorkspace.shared.icon(forFile: url.path(percentEncoded: false))
+    }
+
+    static func name(for bundleIdentifier: String) -> String {
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else {
+            return bundleIdentifier
+        }
+        return FileManager.default.displayName(atPath: url.path(percentEncoded: false))
+            .replacingOccurrences(of: ".app", with: "")
     }
 }

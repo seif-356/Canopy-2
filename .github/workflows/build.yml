@@ -24,8 +24,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Xcode version
-        run: xcodebuild -version
+      - name: Use the newest Xcode (macOS 26 SDK enables Liquid Glass)
+        run: |
+          NEWEST="$(ls -d /Applications/Xcode_*.app 2>/dev/null | grep -E 'Xcode_[0-9.]+\.app$' | sort -V | tail -1 || true)"
+          if [ -n "$NEWEST" ]; then sudo xcode-select -s "$NEWEST"; fi
+          xcodebuild -version
 
       - name: Work out version
         run: |
@@ -69,7 +72,7 @@ jobs:
           [[ "$ARCHS" == *arm64* && "$ARCHS" == *x86_64* ]]
 
           nm "$BIN" > "$RUNNER_TEMP/symbols.txt"
-          for symbol in NotchController NowPlayingService ShelfStore MediaScripts; do
+          for symbol in NotchController NowPlayingService LyricsService NotificationMirror WidgetController ShelfStore; do
             grep -q "$symbol" "$RUNNER_TEMP/symbols.txt" || { echo "missing $symbol"; exit 1; }
           done
 

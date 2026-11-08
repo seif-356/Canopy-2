@@ -3,27 +3,88 @@ import SwiftUI
 
 enum NotchTab: Hashable {
     case nowPlaying
+    case lyrics
     case shelf
 }
 
-/// State the notch views render. The controller owns it and drives open/close.
+struct HUDState: Equatable {
+    enum Kind: Equatable {
+        case volume
+        case brightness
+    }
+
+    var kind: Kind
+    /// 0…1
+    var level: Float
+    var isMuted = false
+
+    var displayLevel: Float { isMuted ? 0 : level }
+
+    var symbol: String {
+        switch kind {
+        case .brightness:
+            return level < 0.4 ? "sun.min.fill" : "sun.max.fill"
+        case .volume:
+            if isMuted || level <= 0 { return "speaker.slash.fill" }
+            if level < 0.34 { return "speaker.wave.1.fill" }
+            if level < 0.67 { return "speaker.wave.2.fill" }
+            return "speaker.wave.3.fill"
+        }
+    }
+}
+
+struct Banner: Identifiable, Equatable {
+    enum Kind: Equatable {
+        /// "Now playing" when the song changes.
+        case track
+        /// A mirrored notification from another app.
+        case notification(bundleIdentifier: String)
+    }
+
+    let id = UUID()
+    var kind: Kind
+    var icon: NSImage?
+    var title: String
+    var subtitle: String
+
+    static func == (lhs: Banner, rhs: Banner) -> Bool { lhs.id == rhs.id }
+}
+
+/// What the closed notch shows, most important first.
+enum ClosedPresentation: Equatable {
+    case idle
+    case activity(withLyrics: Bool)
+    case hud(HUDState)
+    case banner(Banner)
+}
+
+/// State the notch views render. The controller owns it and drives it.
 @MainActor
 final class NotchModel: ObservableObject {
     @Published var geometry: NotchGeometry?
     @Published var isOpen = false
     @Published var tab: NotchTab = .nowPlaying
     @Published var isDropTargeted = false
-    /// True while music plays and the closed notch shows artwork + bars beside the camera.
+    @Published var hud: HUDState?
+    @Published var banner: Banner?
+    /// Music playing: artwork + bars beside the camera.
     @Published private(set) var showsActivity = false
+    /// Synced lyrics line under the closed notch.
+    @Published private(set) var showsClosedLyrics = false
 
     let nowPlaying: NowPlayingService
+    let lyrics: LyricsService
     let shelf: ShelfStore
 
+    var onBannerTap: ((Banner) -> Void)?
+
     private var isPlaying = false
+    private var hasSyncedLyrics = false
     private var cancellables: Set<AnyCancellable> = []
 
-    init(nowPlaying: NowPlayingService, shelf: ShelfStore) {
+    init(nowPlaying: NowPlayingService, lyrics: LyricsService, shelf: ShelfStore) {
         self.nowPlaying = nowPlaying
+        self.lyrics = lyrics
         self.shelf = shelf
 
         nowPlaying.$track
@@ -36,23 +97,53 @@ final class NotchModel: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+
+        lyrics.$status
+            .map { $0 == .synced }
+            .removeDuplicates()
+            .sink { [weak self] synced in
+                MainActor.assumeIsolated {
+                    self?.hasSyncedLyrics = synced
+                    self?.updateActivity()
+                }
+            }
+            .store(in: &cancellables)
     }
 
     func updateActivity() {
-        let shows = isPlaying && Prefs.isMusicActivityEnabled
-        guard shows != showsActivity else { return }
+        let activity = isPlaying && Prefs.isMusicActivityEnabled
+        let lyricsLine = activity && hasSyncedLyrics && Prefs.bool(Prefs.closedLyrics)
+        guard activity != showsActivity || lyricsLine != showsClosedLyrics else { return }
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-            showsActivity = shows
+            showsActivity = activity
+            showsClosedLyrics = lyricsLine
         }
+    }
+
+    var closedPresentation: ClosedPresentation {
+        if let hud { return .hud(hud) }
+        if let banner { return .banner(banner) }
+        if showsActivity { return .activity(withLyrics: showsClosedLyrics) }
+        return .idle
     }
 
     /// Size of the black shape while closed, including its curved "ears".
     var closedSize: CGSize {
         guard let geometry else { return .zero }
-        let activityWidth = showsActivity ? (geometry.notchSize.height + 12) * 2 : 0
-        return CGSize(
-            width: geometry.notchSize.width + NotchMetrics.closedTopRadius * 2 + activityWidth,
-            height: geometry.notchSize.height
-        )
+        let base = geometry.notchSize.width + NotchMetrics.closedTopRadius * 2
+        let height = geometry.notchSize.height
+        switch closedPresentation {
+        case .idle:
+            return CGSize(width: base, height: height)
+        case .activity(let withLyrics):
+            let width = base + (height + 12) * 2
+            return withLyrics
+                ? CGSize(width: max(width, 420), height: height + 26)
+                : CGSize(width: width, height: height)
+        case .hud:
+            return CGSize(width: base + 240, height: height)
+        case .banner:
+            return CGSize(width: max(base + 160, 420), height: height + 66)
+        }
     }
 }
