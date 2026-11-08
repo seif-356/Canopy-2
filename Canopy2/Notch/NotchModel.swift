@@ -127,6 +127,16 @@ final class NotchModel: ObservableObject {
         return .idle
     }
 
+    /// Size of the open notch: compact for the player, taller for lyrics.
+    var openSize: CGSize {
+        let notchHeight = geometry?.notchSize.height ?? 32
+        switch tab {
+        case .nowPlaying: return CGSize(width: 420, height: notchHeight + 138)
+        case .lyrics: return CGSize(width: 420, height: notchHeight + 196)
+        case .shelf: return CGSize(width: 420, height: notchHeight + 132)
+        }
+    }
+
     /// Size of the black shape while closed, including its curved "ears".
     var closedSize: CGSize {
         guard let geometry else { return .zero }
@@ -136,7 +146,7 @@ final class NotchModel: ObservableObject {
         case .idle:
             return CGSize(width: base, height: height)
         case .activity(let withLyrics):
-            let width = base + (height + 12) * 2
+            let width = base + (height * 0.9) * 2
             return withLyrics
                 ? CGSize(width: max(width, 420), height: height + 26)
                 : CGSize(width: width, height: height)

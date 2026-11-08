@@ -18,58 +18,51 @@ struct NowPlayingView: View {
         }
     }
 
+    /// Compact player: art, title and artist with live bars; thin progress bar;
+    /// controls in the middle and the audio output on the right.
     private func playing(_ track: Track) -> some View {
-        HStack(spacing: 16) {
-            ZStack(alignment: .bottomTrailing) {
-                ArtworkView(image: player.artwork, size: 112, cornerRadius: 16)
-                if let icon = AppIcons.icon(for: track.bundleIdentifier) {
-                    Image(nsImage: icon)
-                        .resizable()
-                        .frame(width: 28, height: 28)
-                        .shadow(radius: 3)
-                        .offset(x: 7, y: 7)
+        VStack(spacing: 8) {
+            HStack(spacing: 12) {
+                ArtworkView(image: player.artwork, size: 52, cornerRadius: 11)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(track.title)
+                        .font(.system(size: 15, weight: .semibold))
+                        .lineLimit(1)
+                    Text(track.artist.isEmpty ? track.appName : track.artist)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.white.opacity(0.5))
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                EqualizerBars(isPlaying: track.isPlaying, color: player.palette.primaryColor)
+                    .frame(width: 20, height: 13)
+            }
+            TimelineView(.periodic(from: .now, by: 0.25)) { context in
+                ScrubBar(position: track.elapsed(at: context.date), duration: track.duration, tint: Color.white.opacity(0.7)) { seconds in
+                    player.seek(to: seconds)
                 }
             }
-            VStack(alignment: .leading, spacing: 3) {
-                Text(track.title)
-                    .font(.system(size: 15, weight: .semibold))
-                    .lineLimit(1)
-                Text(track.artist.isEmpty ? track.appName : track.artist)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                Spacer(minLength: 2)
-                TimelineView(.periodic(from: .now, by: 0.25)) { context in
-                    let time = track.elapsed(at: context.date)
-                    VStack(alignment: .leading, spacing: 4) {
-                        if lyrics.status == .synced {
-                            let line = lyrics.line(at: time)?.text ?? ""
-                            Text(line.isEmpty ? "♪" : line)
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(player.palette.primaryColor)
-                                .lineLimit(1)
-                                .animation(.easeInOut(duration: 0.2), value: line)
-                        }
-                        ScrubBar(position: time, duration: track.duration, tint: player.palette.primaryColor) { seconds in
-                            player.seek(to: seconds)
-                        }
-                    }
-                }
-                HStack(spacing: 30) {
-                    ControlButton(symbol: "backward.fill", size: 16, help: "Previous") {
+            .frame(height: 14)
+            HStack(spacing: 0) {
+                Color.clear.frame(width: 34, height: 1) // balances the output button
+                Spacer()
+                HStack(spacing: 24) {
+                    ControlButton(symbol: "backward.fill", size: 17, help: "Previous") {
                         player.send(.previous)
                     }
                     ControlButton(symbol: track.isPlaying ? "pause.fill" : "play.fill", size: 22, help: "Play/Pause") {
                         player.send(.playPause)
                     }
-                    ControlButton(symbol: "forward.fill", size: 16, help: "Next") {
+                    ControlButton(symbol: "forward.fill", size: 17, help: "Next") {
                         player.send(.next)
                     }
                 }
-                .frame(maxWidth: .infinity)
+                Spacer()
+                AudioOutputButton()
+                    .frame(width: 34)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }
 
@@ -152,15 +145,22 @@ struct ControlButton: View {
     let help: String
     let action: () -> Void
 
+    @State private var isHovering = false
+
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: size, weight: .semibold))
-                .frame(width: size + 20, height: size + 14)
+                .frame(width: size + 18, height: size + 14)
+                .background(
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(Color.white.opacity(isHovering ? 0.12 : 0))
+                )
                 .contentShape(Rectangle())
                 .contentTransition(.symbolEffect(.replace))
         }
         .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
         .help(help)
     }
 }

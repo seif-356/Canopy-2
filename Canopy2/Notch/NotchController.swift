@@ -340,7 +340,7 @@ final class NotchController {
     }
 
     private func keepOpenZone(_ geometry: NotchGeometry) -> NSRect {
-        geometry.rectHangingFromTop(NotchMetrics.openSize).insetBy(dx: -12, dy: -12)
+        geometry.rectHangingFromTop(model.openSize).insetBy(dx: -12, dy: -12)
     }
 
     private func handle(_ event: NSEvent) {

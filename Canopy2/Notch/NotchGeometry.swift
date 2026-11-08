@@ -1,15 +1,15 @@
 import AppKit
 
 enum NotchMetrics {
-    /// Size of the expanded notch.
-    static let openSize = CGSize(width: 580, height: 210)
+    /// Largest the open notch gets (the panel window is this big plus shadow room).
+    static let maxOpenSize = CGSize(width: 480, height: 280)
     /// Extra transparent room around the open notch so its shadow isn't clipped.
     static let shadowPadding: CGFloat = 24
 
     static let closedTopRadius: CGFloat = 6
     static let closedBottomRadius: CGFloat = 10
     static let openTopRadius: CGFloat = 14
-    static let openBottomRadius: CGFloat = 28
+    static let openBottomRadius: CGFloat = 24
 
     /// Width of the fake notch drawn on displays without a camera notch.
     static let fakeNotchWidth: CGFloat = 190
@@ -49,8 +49,8 @@ struct NotchGeometry: Equatable {
 
     /// Frame of the panel window: the open notch plus shadow padding.
     var windowFrame: NSRect {
-        let width = NotchMetrics.openSize.width + NotchMetrics.shadowPadding * 2
-        let height = NotchMetrics.openSize.height + NotchMetrics.shadowPadding
+        let width = NotchMetrics.maxOpenSize.width + NotchMetrics.shadowPadding * 2
+        let height = NotchMetrics.maxOpenSize.height + NotchMetrics.shadowPadding
         return NSRect(x: screenFrame.midX - width / 2, y: screenFrame.maxY - height, width: width, height: height)
     }
 

@@ -11,8 +11,8 @@ struct NotchRootView: View {
             }
         }
         .frame(
-            width: NotchMetrics.openSize.width + NotchMetrics.shadowPadding * 2,
-            height: NotchMetrics.openSize.height + NotchMetrics.shadowPadding,
+            width: NotchMetrics.maxOpenSize.width + NotchMetrics.shadowPadding * 2,
+            height: NotchMetrics.maxOpenSize.height + NotchMetrics.shadowPadding,
             alignment: .top
         )
         .environment(\.colorScheme, .dark)
@@ -21,7 +21,7 @@ struct NotchRootView: View {
     private func notch(_ geometry: NotchGeometry) -> some View {
         let isOpen = model.isOpen
         let presentation = model.closedPresentation
-        let size = isOpen ? NotchMetrics.openSize : model.closedSize
+        let size = isOpen ? model.openSize : model.closedSize
         let expanded = isOpen || {
             if case .banner = presentation { return true }
             return false
@@ -58,6 +58,7 @@ struct NotchRootView: View {
             }
         }
         .frame(width: size.width, height: size.height, alignment: .top)
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: model.tab)
         .background(shape.fill(Color.black))
         .clipShape(shape)
         .shadow(color: .black.opacity(expanded ? 0.45 : 0), radius: 14, y: 4)
@@ -69,9 +70,9 @@ struct OpenNotchView: View {
     let notchHeight: CGFloat
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 4) {
             header
-                .frame(height: max(notchHeight, 28))
+                .frame(height: max(notchHeight, 24))
             Group {
                 switch model.tab {
                 case .nowPlaying:
@@ -84,8 +85,8 @@ struct OpenNotchView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .padding(.horizontal, NotchMetrics.openTopRadius + 18)
-        .padding(.bottom, 16)
+        .padding(.horizontal, NotchMetrics.openTopRadius + 10)
+        .padding(.bottom, 14)
         .foregroundStyle(.white)
     }
 
@@ -111,7 +112,8 @@ struct OpenNotchView: View {
                 Button("Quit Canopy 2") { NSApp.terminate(nil) }
             } label: {
                 Image(systemName: "gearshape.fill")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.3))
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
@@ -130,13 +132,12 @@ struct TabButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 12, weight: .semibold))
-                .frame(width: 32, height: 22)
-                .background(Capsule().fill(Color.white.opacity(isSelected ? 0.18 : 0)))
-                .contentShape(Capsule())
+                .font(.system(size: 11, weight: .semibold))
+                .frame(width: 26, height: 20)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .foregroundStyle(Color.white.opacity(isSelected ? 1 : 0.55))
+        .foregroundStyle(Color.white.opacity(isSelected ? 0.85 : 0.3))
         .help(help)
     }
 }

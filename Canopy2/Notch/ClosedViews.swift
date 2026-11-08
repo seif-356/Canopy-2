@@ -10,12 +10,12 @@ struct ClosedActivityView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                ArtworkView(image: player.artwork, size: max(notchHeight - 10, 12), cornerRadius: 5)
+                ArtworkView(image: player.artwork, size: max(notchHeight - 14, 12), cornerRadius: 4)
                 Spacer(minLength: 0)
                 EqualizerBars(isPlaying: player.track?.isPlaying ?? false, color: player.palette.primaryColor)
-                    .frame(width: max(notchHeight - 14, 10), height: max(notchHeight - 16, 8))
+                    .frame(width: max(notchHeight * 0.5, 10), height: max(notchHeight * 0.36, 8))
             }
-            .padding(.horizontal, NotchMetrics.closedTopRadius + 8)
+            .padding(.horizontal, NotchMetrics.closedTopRadius + 6)
             .frame(height: notchHeight)
 
             if showsLyrics, let track = player.track {
