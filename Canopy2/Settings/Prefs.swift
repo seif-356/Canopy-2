@@ -23,6 +23,7 @@ enum Prefs {
     static let widgetEnabled = "widgetEnabled"
     static let widgetPreset = "widgetPreset"          // WidgetPreset raw value
     static let lockScreenWidget = "lockScreenWidget"
+    static let lockScreenPosition = "lockScreenPosition" // LockScreenPosition raw value
 
     // Shelf
     static let shelfPaths = "shelfPaths"
@@ -41,6 +42,7 @@ enum Prefs {
             widgetEnabled: false,
             widgetPreset: WidgetPreset.lockScreen.rawValue,
             lockScreenWidget: false,
+            lockScreenPosition: LockScreenPosition.center.rawValue,
         ])
     }
 
@@ -100,5 +102,52 @@ enum WidgetPreset: String, CaseIterable, Identifiable {
         case .lyrics: "Lyrics"
         case .clock: "Minimal Clock"
         }
+    }
+}
+
+/// Where the lock-screen card goes. The default avoids the clock (top centre)
+/// and the user picture and password field (bottom centre).
+enum LockScreenPosition: String, CaseIterable, Identifiable {
+    case center
+    case topLeft
+    case topRight
+    case bottomLeft
+    case bottomRight
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .center: "Middle of the screen"
+        case .topLeft: "Top left"
+        case .topRight: "Top right"
+        case .bottomLeft: "Bottom left"
+        case .bottomRight: "Bottom right"
+        }
+    }
+
+    /// Window frame for a card of `size` on `screen` (screen coordinates).
+    func frame(for size: CGSize, on screen: NSRect) -> NSRect {
+        let margin: CGFloat = 48
+        let x: CGFloat
+        let y: CGFloat
+        switch self {
+        case .center:
+            x = screen.midX - size.width / 2
+            y = screen.midY - size.height / 2
+        case .topLeft:
+            x = screen.minX + margin
+            y = screen.maxY - size.height - margin * 1.5
+        case .topRight:
+            x = screen.maxX - size.width - margin
+            y = screen.maxY - size.height - margin * 1.5
+        case .bottomLeft:
+            x = screen.minX + margin
+            y = screen.minY + margin
+        case .bottomRight:
+            x = screen.maxX - size.width - margin
+            y = screen.minY + margin
+        }
+        return NSRect(x: x, y: y, width: size.width, height: size.height)
     }
 }

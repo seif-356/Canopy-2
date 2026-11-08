@@ -38,12 +38,8 @@ final class LockScreenController {
               let skyLight = SkyLightBridge.shared else { return }
 
         let size = WidgetView.size(for: .nowPlaying)
-        let frame = NSRect(
-            x: screen.frame.midX - size.width / 2,
-            y: screen.frame.minY + screen.frame.height * 0.16,
-            width: size.width,
-            height: size.height
-        )
+        let position = LockScreenPosition(rawValue: Prefs.string(Prefs.lockScreenPosition)) ?? .center
+        let frame = position.frame(for: size, on: screen.frame)
         let window = NSWindow(contentRect: frame, styleMask: [.borderless], backing: .buffered, defer: false)
         window.isOpaque = false
         window.backgroundColor = .clear

@@ -180,6 +180,7 @@ private struct WidgetSettings: View {
     @AppStorage(Prefs.widgetEnabled) private var widgetEnabled = false
     @AppStorage(Prefs.widgetPreset) private var widgetPreset = WidgetPreset.lockScreen.rawValue
     @AppStorage(Prefs.lockScreenWidget) private var lockScreenWidget = false
+    @AppStorage(Prefs.lockScreenPosition) private var lockScreenPosition = LockScreenPosition.center.rawValue
 
     var body: some View {
         Form {
@@ -198,6 +199,12 @@ private struct WidgetSettings: View {
             }
             Section {
                 Toggle("Show Now Playing on the lock screen (experimental)", isOn: $lockScreenWidget)
+                Picker("Position", selection: $lockScreenPosition) {
+                    ForEach(LockScreenPosition.allCases) { position in
+                        Text(position.title).tag(position.rawValue)
+                    }
+                }
+                .disabled(!lockScreenWidget)
             } footer: {
                 Text("""
                     Uses private macOS APIs that Apple can change in any update. If your Mac \
