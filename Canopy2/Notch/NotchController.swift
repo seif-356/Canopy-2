@@ -17,11 +17,13 @@ final class NotchController {
     let battery = BatteryMonitor()
     let headphones = AirPodsMonitor()
     let weather = WeatherService()
+    let history = PlayHistory()
 
     private let volumeObserver = VolumeObserver()
     private let keyTap = MediaKeyTap()
     private let widget: WidgetController
     private let lockScreen: LockScreenController
+    private let desktopSkin: DesktopSkinController
 
     private var panel: NotchPanel?
     private var eventMonitors: [Any] = []
@@ -55,6 +57,7 @@ final class NotchController {
             player: nowPlaying, lyrics: lyrics, battery: battery, headphones: headphones, weather: weather
         )
         model = NotchModel(nowPlaying: nowPlaying, lyrics: lyrics, shelf: shelf, weather: weather)
+        desktopSkin = DesktopSkinController(player: nowPlaying, lyrics: lyrics, history: history)
     }
 
     func start() {
@@ -76,7 +79,21 @@ final class NotchController {
 
         nowPlaying.$track
             .sink { [weak self] track in
-                MainActor.assumeIsolated { self?.trackUpdated(track) }
+                MainActor.assumeIsolated {
+                    self?.trackUpdated(track)
+                    self?.history.record(track)
+                }
+            }
+            .store(in: &cancellables)
+        // Artwork is published just before the track that owns it, so look the
+        // track up on the next run-loop pass.
+        nowPlaying.$artwork
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] artwork in
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    self.history.setArtwork(artwork, for: self.nowPlaying.track?.identity)
+                }
             }
             .store(in: &cancellables)
 
@@ -137,6 +154,7 @@ final class NotchController {
             )
         }
         if changed(Prefs.lockScreenWidget) { lockScreen.isEnabled = Prefs.bool(Prefs.lockScreenWidget) }
+        if changed(Prefs.desktopSkin) { desktopSkin.update(enabled: Prefs.bool(Prefs.desktopSkin)) }
         if changed(Prefs.weatherEnabled) || changed(Prefs.weatherUnit) || changed(Prefs.weatherCity) {
             // Wait for typing in the city field to settle before looking it up.
             weatherConfigureTask?.cancel()

@@ -82,26 +82,7 @@ final class LockScreenBackground {
 
     /// Artwork scaled to fill the screen, heavily blurred and slightly darkened.
     private func render(_ image: NSImage, size: CGSize) -> URL? {
-        guard size.width > 0, size.height > 0,
-              let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
-        let target = CGRect(origin: .zero, size: size)
-        var output = CIImage(cgImage: cgImage)
-        let scale = max(size.width / output.extent.width, size.height / output.extent.height)
-        output = output.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
-        output = output.transformed(by: CGAffineTransform(
-            translationX: (size.width - output.extent.width) / 2 - output.extent.minX,
-            y: (size.height - output.extent.height) / 2 - output.extent.minY
-        ))
-        output = output
-            .clampedToExtent()
-            .applyingGaussianBlur(sigma: 45)
-            .applyingFilter("CIColorControls", parameters: [
-                kCIInputBrightnessKey: -0.1,
-                kCIInputSaturationKey: 1.2,
-            ])
-            .cropped(to: target)
-
-        guard let rendered = CIContext().createCGImage(output, from: target),
+        guard let rendered = ArtworkBlur.render(image, size: size),
               let data = NSBitmapImageRep(cgImage: rendered).representation(using: .jpeg, properties: [.compressionFactor: 0.9])
         else { return nil }
 

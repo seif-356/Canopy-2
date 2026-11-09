@@ -44,7 +44,8 @@ final class WidgetController {
         window.isOpaque = false
         window.backgroundColor = .clear
         window.hasShadow = true
-        window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopIconWindow)) + 1)
+        // Above the desktop skin (+1), below every app window.
+        window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopIconWindow)) + 2)
         window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
         window.isReleasedWhenClosed = false
         window.setFrameAutosaveName("Canopy2Widget")

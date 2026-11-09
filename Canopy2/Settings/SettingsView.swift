@@ -234,6 +234,8 @@ private struct WidgetSettings: View {
     @AppStorage(Prefs.lockScreenPosition) private var lockScreenPosition = LockScreenPosition.center.rawValue
     @AppStorage(Prefs.lockScreenBackground) private var lockScreenBackground = true
     @AppStorage(Prefs.lockScreenInfoRow) private var lockScreenInfoRow = true
+    @AppStorage(Prefs.desktopSkin) private var desktopSkin = false
+    @AppStorage(Prefs.musicTarget) private var musicTarget = MusicTarget.automatic.rawValue
 
     var body: some View {
         Form {
@@ -247,6 +249,23 @@ private struct WidgetSettings: View {
                 .disabled(!widgetEnabled)
             } footer: {
                 Text("Drag the bar at the top of the widget to move it.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section {
+                Toggle("Desktop skin", isOn: $desktopSkin)
+                Picker("Open search results in", selection: $musicTarget) {
+                    ForEach(MusicTarget.allCases) { target in
+                        Text(target.title).tag(target.rawValue)
+                    }
+                }
+                .disabled(!desktopSkin)
+            } footer: {
+                Text("""
+                    Covers the desktop with the playing song's artwork, a big clock, recently played \
+                    songs, a player bar and Apple Music search. App windows stay on top. Toggle it \
+                    from the menu bar icon too.
+                    """)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

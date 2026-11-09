@@ -34,6 +34,10 @@ enum Prefs {
     static let weatherUnit = "weatherUnit"               // TemperatureUnit raw value
     static let weatherCity = "weatherCity"               // empty = use Location Services
 
+    // Desktop skin
+    static let desktopSkin = "desktopSkin"
+    static let musicTarget = "musicTarget"               // MusicTarget raw value
+
     // Shelf
     static let shelfPaths = "shelfPaths"
 
@@ -59,6 +63,8 @@ enum Prefs {
             weatherEnabled: true,
             weatherUnit: TemperatureUnit.localDefault.rawValue,
             weatherCity: "",
+            desktopSkin: false,
+            musicTarget: MusicTarget.automatic.rawValue,
         ])
     }
 
@@ -78,7 +84,7 @@ enum Prefs {
         let keys = [
             showOnNotchless, mediaSource, showMusicActivity, trackBanner, lyricsEnabled, closedLyrics,
             notificationMirroring, volumeHUD, replaceSystemHUD, widgetEnabled, widgetPreset, lockScreenWidget,
-            batteryAlerts, headphoneBanner, weatherEnabled, weatherUnit, weatherCity,
+            batteryAlerts, headphoneBanner, weatherEnabled, weatherUnit, weatherCity, desktopSkin,
         ]
         var result: [String: String] = [:]
         for key in keys {

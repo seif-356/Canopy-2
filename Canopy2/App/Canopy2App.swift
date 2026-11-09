@@ -3,11 +3,14 @@ import SwiftUI
 @main
 struct Canopy2App: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @AppStorage(Prefs.desktopSkin) private var desktopSkin = false
 
     var body: some Scene {
         // The app has no Dock icon (LSUIElement), so the menu bar item is
         // the way to reach Settings and Quit.
         MenuBarExtra("Canopy 2", systemImage: "rectangle.topthird.inset.filled") {
+            Toggle("Desktop Skin", isOn: $desktopSkin)
+            Divider()
             Button("Settings…") {
                 SettingsWindowController.shared.show()
             }
