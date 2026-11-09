@@ -43,6 +43,12 @@ Not affiliated with Canopy (getcanopy.pro).
 - A frosted-glass widget on the desktop, with four layouts: Clock + Now Playing, Now Playing, Lyrics, and Minimal Clock. It uses Liquid Glass on macOS 26 when built with Xcode 26.
 - Experimental lock-screen player, off by default. It shows big artwork under the clock with glass controls, a row with weather, battery and AirPods, and the blurred artwork as the background.
 
+**Desktop skin** (menu bar icon › Desktop Skin)
+- Covers the desktop with the playing song's artwork, blurred and slowly moving, plus a big clock.
+- Recently played songs on the left (from any app), the now playing card with synced lyrics in the middle, and a glass player bar at the bottom.
+- Search the Apple Music catalog (artists, songs, albums, artist pages) with Apple's free iTunes Search API. Results open in Apple Music, Spotify, YouTube Music, SoundCloud or Amazon Music. "Automatic" follows whatever is playing.
+- App windows stay on top of it; it replaces the desktop, so desktop icons are hidden while it's on.
+
 **Settings**: gear icon in the open notch, or the menu bar icon.
 
 ## Install (no Xcode needed)
@@ -77,6 +83,7 @@ git tag v0.2.0 && git push origin v0.2.0
 ## Limits
 
 - **Media from any app** relies on mediaremote-adapter, which works around Apple's lock on the private MediaRemote framework (since macOS 15.4) by running inside `/usr/bin/perl`. A macOS update could break it; Canopy 2 then falls back to Music and Spotify. Settings › Media shows which one is in use.
+- **Search inside Spotify, YouTube Music, SoundCloud and Amazon Music** isn't possible without their APIs (Spotify needs a developer account; the others have no public search API), so the desktop skin searches Apple Music's catalog and opens the others' own search with your query.
 - **AirPods listening mode** (noise cancellation or transparency) isn't shown, because it needs private Bluetooth APIs.
 - **Notification banners** read a private macOS database whose format can change in any update. If it does, Settings › Notifications says so.
 - **Brightness keys** use a private framework, and newer keyboards may not send them to apps.
