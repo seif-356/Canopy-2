@@ -33,8 +33,7 @@ struct LockScreenView: View {
                 LockScreenInfoRow(battery: battery, headphones: headphones, weather: weather)
             }
             if showsArtwork {
-                ArtworkView(image: player.artwork, size: artworkSide, cornerRadius: artworkSide * 0.05)
-                    .shadow(color: .black.opacity(0.45), radius: 24, y: 12)
+                DepthArtworkView(image: player.artwork, size: artworkSide)
             }
             LockScreenControls(player: player, lyrics: lyrics)
                 .frame(width: Self.cardWidth)

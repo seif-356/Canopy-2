@@ -171,7 +171,7 @@ final class NotchModel: ObservableObject {
                 ? CGSize(width: max(width, 420), height: height + 26)
                 : CGSize(width: width, height: height)
         case .hud:
-            return CGSize(width: base + 240, height: height)
+            return CGSize(width: base + 112, height: height + 16)
         case .status:
             return CGSize(width: base + 260, height: height)
         case .banner:

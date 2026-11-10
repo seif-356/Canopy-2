@@ -36,36 +36,47 @@ struct ClosedActivityView: View {
     }
 }
 
-/// Volume / brightness level, replacing (or accompanying) the macOS pop-up.
+/// Volume / brightness: the notch grows down a little, with the label beside the
+/// camera on the left and a slim bar underneath on the right.
 struct HUDView: View {
     let state: HUDState
     let notchHeight: CGFloat
     let tint: Color
 
+    private var label: String {
+        switch state.kind {
+        case .volume: state.isMuted ? "Muted" : "Volume"
+        case .brightness: "Brightness"
+        }
+    }
+
     var body: some View {
-        HStack {
-            Image(systemName: state.symbol)
-                .font(.system(size: 14, weight: .semibold))
-                .frame(width: 26)
-                .contentTransition(.symbolEffect(.replace))
-            Spacer(minLength: 0)
-            HStack(spacing: 8) {
+        VStack(spacing: 0) {
+            HStack {
+                Text(label)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.8))
+                    .contentTransition(.opacity)
+                Spacer(minLength: 0)
+            }
+            .frame(height: notchHeight)
+            HStack {
+                Spacer(minLength: 0)
                 GeometryReader { proxy in
                     ZStack(alignment: .leading) {
-                        Capsule().fill(Color.white.opacity(0.2))
+                        Capsule().fill(Color.white.opacity(0.22))
                         Capsule()
-                            .fill(state.kind == .brightness ? Color.white : tint)
-                            .frame(width: proxy.size.width * CGFloat(state.displayLevel))
+                            .fill(Color.white.opacity(0.9))
+                            .frame(width: max(proxy.size.height, proxy.size.width * CGFloat(state.displayLevel)))
+                            .opacity(state.displayLevel > 0 ? 1 : 0)
                     }
                 }
-                .frame(width: 72, height: 5)
-                Text("\(Int((state.displayLevel * 100).rounded()))")
-                    .font(.system(size: 11, weight: .semibold).monospacedDigit())
-                    .frame(width: 26, alignment: .trailing)
+                .frame(width: 66, height: 5)
             }
+            .frame(maxHeight: .infinity)
         }
-        .padding(.horizontal, NotchMetrics.closedTopRadius + 14)
-        .frame(height: notchHeight)
+        .padding(.horizontal, NotchMetrics.closedTopRadius + 12)
+        .padding(.bottom, 4)
         .foregroundStyle(.white)
         .animation(.easeOut(duration: 0.15), value: state.displayLevel)
     }
