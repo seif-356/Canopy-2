@@ -45,7 +45,9 @@ enum TemperatureUnit: String, CaseIterable, Identifiable {
 @MainActor
 final class WeatherService: NSObject, ObservableObject {
     @Published private(set) var current: WeatherNow?
-    @Published private(set) var status = "Off"
+    @Published private(set) var status = "Off" {
+        didSet { NSLog("Canopy2 weather: %@", status) }
+    }
 
     private let locationManager = CLLocationManager()
     private var timer: Timer?

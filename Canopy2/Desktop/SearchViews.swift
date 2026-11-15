@@ -48,7 +48,8 @@ struct SearchPanel: View {
             }
         }
         .padding(18)
-        .frame(width: 780, height: 440, alignment: .top)
+        .frame(width: 780, alignment: .top)
+        .frame(minHeight: 220, maxHeight: 440, alignment: .top)
         .modifier(GlassBackground(palette: state.player.palette, hasArtwork: false, cornerRadius: 28))
         .onAppear { isFocused = true }
         .onExitCommand { state.closePanel() }
@@ -138,7 +139,8 @@ struct ArtistPage: View {
             }
         }
         .padding(22)
-        .frame(width: 780, height: 440, alignment: .top)
+        .frame(width: 780, alignment: .top)
+        .frame(minHeight: 220, maxHeight: 440, alignment: .top)
         .modifier(GlassBackground(palette: state.player.palette, hasArtwork: false, cornerRadius: 28))
         .onExitCommand { state.closePanel() }
     }

@@ -15,12 +15,6 @@ struct DesktopSkinView: View {
             ZStack {
                 DesktopBackground(player: player)
 
-                VStack {
-                    DesktopClock()
-                        .padding(.top, insets.top + 16)
-                    Spacer()
-                }
-
                 HStack(alignment: .top) {
                     HistorySidebar(history: history, state: state)
                         .frame(width: 270)
@@ -32,10 +26,17 @@ struct DesktopSkinView: View {
                 .padding(.bottom, insets.bottom + 110)
                 .frame(maxHeight: .infinity, alignment: .top)
 
-                center
-                    .padding(.top, proxy.size.height * 0.28)
-                    .padding(.bottom, insets.bottom + 110)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // Clock on top, then the card or panel below it, stacked so they can't
+                // overlap. The clock scales with the screen and shrinks while a panel is open.
+                VStack(spacing: 14) {
+                    DesktopClock(size: clockSize(for: proxy.size.height))
+                    center
+                    Spacer(minLength: 0)
+                }
+                .padding(.top, insets.top + 10)
+                .padding(.bottom, insets.bottom + 100)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .animation(.spring(response: 0.45, dampingFraction: 0.85), value: state.panel)
 
                 VStack {
                     Spacer()
@@ -49,6 +50,10 @@ struct DesktopSkinView: View {
         .foregroundStyle(.white)
         .environment(\.colorScheme, .dark)
         .ignoresSafeArea()
+    }
+
+    private func clockSize(for height: CGFloat) -> CGFloat {
+        state.panel == .nowPlaying ? min(190, height * 0.18) : min(80, height * 0.08)
     }
 
     @ViewBuilder
@@ -130,14 +135,17 @@ struct DesktopBackground: View {
 }
 
 struct DesktopClock: View {
+    /// Point size of the time.
+    var size: CGFloat = 190
+
     var body: some View {
         TimelineView(.everyMinute) { context in
-            VStack(spacing: -6) {
+            VStack(spacing: -size * 0.03) {
                 Text(context.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.system(size: max(12, size * 0.095), weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.8))
                 Text(context.date.formatted(.dateTime.hour(.defaultDigits(amPM: .omitted)).minute()))
-                    .font(.system(size: 190, weight: .semibold).width(.compressed))
+                    .font(.system(size: size, weight: .semibold).width(.compressed))
                     .monospacedDigit()
             }
             .shadow(color: .black.opacity(0.35), radius: 24, y: 10)
