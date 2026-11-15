@@ -4,11 +4,17 @@ import CoreImage
 /// Artwork scaled to fill `size`, heavily blurred and slightly darkened.
 /// Used for the lock-screen background and the desktop skin.
 enum ArtworkBlur {
-    private static let context = CIContext()
+    /// Shared: creating a CIContext is expensive.
+    static let context = CIContext()
 
     static func render(_ image: NSImage, size: CGSize, sigma: Double = 45) -> CGImage? {
-        guard size.width > 0, size.height > 0,
-              let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        return render(cgImage, size: size, sigma: sigma)
+    }
+
+    /// Thread-safe: callable off the main thread.
+    static func render(_ cgImage: CGImage, size: CGSize, sigma: Double = 45) -> CGImage? {
+        guard size.width > 0, size.height > 0 else { return nil }
         let target = CGRect(origin: .zero, size: size)
         var output = CIImage(cgImage: cgImage)
         let scale = max(size.width / output.extent.width, size.height / output.extent.height)
@@ -27,4 +33,10 @@ enum ArtworkBlur {
             .cropped(to: target)
         return context.createCGImage(output, from: target)
     }
+}
+
+/// Carries a CGImage across threads (CGImage is immutable).
+final class CGImageBox: @unchecked Sendable {
+    let image: CGImage?
+    init(_ image: CGImage?) { self.image = image }
 }

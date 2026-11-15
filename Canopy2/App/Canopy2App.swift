@@ -29,12 +29,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var notchController: NotchController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // A helper (osascript, perl) exiting early must not kill the app when we write to it.
+        signal(SIGPIPE, SIG_IGN)
         Prefs.registerDefaults()
         NSApp.setActivationPolicy(.accessory)
         let controller = NotchController()
         SettingsWindowController.shared.configure(controller: controller)
         controller.start()
-        controller.showHello()
+        if let scene = UserDefaults.standard.string(forKey: "smokeScene") {
+            // CI screenshot run: give media a moment to load, then set up the scene.
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(3))
+                controller.runSmokeScene(scene)
+            }
+        } else {
+            controller.showHello()
+        }
         notchController = controller
     }
 

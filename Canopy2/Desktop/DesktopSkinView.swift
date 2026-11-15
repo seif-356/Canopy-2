@@ -106,14 +106,23 @@ struct DesktopBackground: View {
     }
 
     private func render(for size: CGSize) {
-        guard let artwork = player.artwork else {
+        guard let artwork = player.artwork,
+              let source = artwork.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
             blurred = nil
             return
         }
-        // Half resolution is plenty for a heavy blur and much cheaper.
+        // Half resolution is plenty for a heavy blur; render it off the main thread.
         let target = CGSize(width: max(size.width / 2, 1), height: max(size.height / 2, 1))
-        guard let image = ArtworkBlur.render(artwork, size: target, sigma: 30) else { return }
-        blurred = NSImage(cgImage: image, size: target)
+        let input = CGImageBox(source)
+        Task {
+            let output: CGImageBox = await withCheckedContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    continuation.resume(returning: CGImageBox(input.image.flatMap { ArtworkBlur.render($0, size: target, sigma: 30) }))
+                }
+            }
+            guard player.artwork === artwork, let image = output.image else { return }
+            blurred = NSImage(cgImage: image, size: target)
+        }
     }
 }
 

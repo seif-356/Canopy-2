@@ -466,6 +466,35 @@ final class NotchController {
 
     // MARK: - Open / close
 
+    // MARK: - Smoke test
+
+    /// Puts the app in a known state for CI screenshots. Only used when the app is
+    /// launched with `-smokeScene NAME` (see ci/smoke-test.sh); never in normal use.
+    func runSmokeScene(_ scene: String) {
+        switch scene {
+        case "notch-open", "lyrics", "shelf":
+            holdOpenUntil = .distantFuture
+            open(tab: scene == "lyrics" ? .lyrics : scene == "shelf" ? .shelf : .nowPlaying)
+        case "hud":
+            showHUD(HUDState(kind: .volume, level: 0.62))
+            hudHideTask?.cancel()
+        case "status":
+            batteryEvent(.pluggedIn(BatteryState(percent: 54, isCharging: true, isPluggedIn: true, isLowPowerMode: false)))
+            statusHideTask?.cancel()
+        case "banner":
+            showBanner(Banner(kind: .notification(bundleIdentifier: "com.apple.mail"),
+                              icon: AppIcons.icon(for: "com.apple.mail"), symbol: nil,
+                              title: "Smoke Test", subtitle: "A mirrored notification · Canopy 2 CI"))
+            bannerHideTask?.cancel()
+        case "settings":
+            SettingsWindowController.shared.show()
+        case "lockscreen":
+            lockScreen.showPreview()
+        default:
+            break // "notch-closed", "desktop": nothing to do beyond launch flags
+        }
+    }
+
     /// Opens the notch for a few seconds so it's obvious the app is running
     /// (it has no Dock icon, and the menu bar icon can hide behind the notch).
     func showHello() {
@@ -486,7 +515,7 @@ final class NotchController {
         cancelOpen()
         cancelClose()
         if let tab { model.tab = tab }
-        guard !model.isOpen, panel != nil else { return }
+        guard !model.isOpen, model.geometry != nil, panel?.isVisible == true else { return }
         hideBanner()
         hudHideTask?.cancel()
         model.hud = nil

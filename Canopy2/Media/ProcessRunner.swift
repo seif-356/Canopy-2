@@ -44,7 +44,8 @@ enum ProcessRunner {
         DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: watchdog)
 
         if let inputPipe, let input {
-            inputPipe.fileHandleForWriting.write(input)
+            // The throwing API reports a closed pipe as an error instead of raising.
+            try? inputPipe.fileHandleForWriting.write(contentsOf: input)
             try? inputPipe.fileHandleForWriting.close()
         }
 

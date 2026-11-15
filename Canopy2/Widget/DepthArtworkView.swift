@@ -74,7 +74,7 @@ enum SubjectLift {
                 ofInstances: observation.allInstances, from: handler, croppedToInstancesExtent: false
             )
             let ciImage = CIImage(cvPixelBuffer: buffer)
-            return CIContext().createCGImage(ciImage, from: ciImage.extent)
+            return ArtworkBlur.context.createCGImage(ciImage, from: ciImage.extent)
         } catch {
             return nil
         }

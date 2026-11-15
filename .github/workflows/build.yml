@@ -104,6 +104,18 @@ jobs:
           codesign -d --entitlements - --xml "$APP" > "$RUNNER_TEMP/entitlements.xml" 2>/dev/null
           grep -q "com.apple.security.automation.apple-events" "$RUNNER_TEMP/entitlements.xml"
 
+      - name: Smoke test (launch each screen, screenshot, collect logs)
+        continue-on-error: true
+        run: ci/smoke-test.sh "$APP" "$RUNNER_TEMP/smoke"
+
+      - name: Upload smoke-test screenshots
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-${{ github.run_number }}
+          path: ${{ runner.temp }}/smoke
+
       - name: Zip
         run: |
           ditto -c -k --keepParent "$APP" "$ZIP"

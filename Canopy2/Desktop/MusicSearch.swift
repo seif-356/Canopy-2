@@ -52,15 +52,28 @@ enum ITunesSearch {
         let albums = (albumsRaw ?? []).compactMap(album)
         var artists = (artistsRaw ?? []).compactMap(artist)
 
-        // The API has no artist photos: use one of their covers instead.
+        // The API has no artist photos: use one of their covers instead, looking up
+        // the ones not in the song results all at once.
         for index in artists.indices {
-            let id = artists[index].id
-            if let cover = songs.first(where: { $0.artistID == id })?.artworkURL {
-                artists[index].artworkURL = cover
-            } else if let first = await fetch(["id": String(id), "entity": "album", "limit": "1"], endpoint: "lookup")?
-                        .compactMap(album).first {
-                artists[index].artworkURL = first.artworkURL
+            artists[index].artworkURL = songs.first(where: { $0.artistID == artists[index].id })?.artworkURL
+        }
+        let missing = artists.filter { $0.artworkURL == nil }.map(\.id)
+        let covers = await withTaskGroup(of: (Int, URL?).self) { group -> [Int: URL] in
+            for id in missing {
+                group.addTask {
+                    let first = await fetch(["id": String(id), "entity": "album", "limit": "1"], endpoint: "lookup")?
+                        .compactMap(album).first
+                    return (id, first?.artworkURL)
+                }
             }
+            var result: [Int: URL] = [:]
+            for await (id, url) in group {
+                if let url { result[id] = url }
+            }
+            return result
+        }
+        for index in artists.indices where artists[index].artworkURL == nil {
+            artists[index].artworkURL = covers[artists[index].id]
         }
         return SearchResults(artists: artists, songs: songs, albums: albums)
     }

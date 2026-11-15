@@ -11,8 +11,9 @@ import CoreImage
 /// wallpapers) can't be restored by URL, so in that case nothing is swapped.
 @MainActor
 final class LockScreenBackground {
-    private let backupKey = "lockScreenWallpaperBackup"
-    private var savedOptions: [String: [NSWorkspace.DesktopImageOptionKey: Any]] = [:]
+    /// Per screen: {"url": String, "scaling": Int, "clipping": Bool, "fill": Data}.
+    /// Saved to UserDefaults so a restore after a crash puts back the options too.
+    private let backupKey = "lockScreenWallpaperBackupV2"
     private var appliedKey: String?
 
     private static let restorableExtensions: Set<String> = ["png", "jpg", "jpeg", "heic", "heif", "tif", "tiff"]
@@ -30,12 +31,13 @@ final class LockScreenBackground {
         guard !screens.isEmpty else { return }
 
         // Back up the originals once per lock, and only if every one can be put back.
-        var backup = UserDefaults.standard.dictionary(forKey: backupKey) as? [String: String] ?? [:]
+        var backup = UserDefaults.standard.dictionary(forKey: backupKey) as? [String: [String: Any]] ?? [:]
         if backup.isEmpty {
             for screen in screens {
                 guard let url = NSWorkspace.shared.desktopImageURL(for: screen), Self.isRestorable(url) else { return }
-                backup[Self.id(of: screen)] = url.absoluteString
-                savedOptions[Self.id(of: screen)] = NSWorkspace.shared.desktopImageOptions(for: screen) ?? [:]
+                var entry = Self.plist(from: NSWorkspace.shared.desktopImageOptions(for: screen) ?? [:])
+                entry["url"] = url.absoluteString
+                backup[Self.id(of: screen)] = entry
             }
             UserDefaults.standard.set(backup, forKey: backupKey)
         }
@@ -51,20 +53,42 @@ final class LockScreenBackground {
         removeFiles(except: file)
     }
 
-    /// Puts the user's own desktop pictures back. Safe to call any time.
+    /// Puts the user's own desktop pictures (and their options) back. Safe to call any time.
     func restore() {
         defer {
             appliedKey = nil
-            savedOptions = [:]
             removeFiles(except: nil)
         }
-        guard let backup = UserDefaults.standard.dictionary(forKey: backupKey) as? [String: String], !backup.isEmpty else { return }
+        guard let backup = UserDefaults.standard.dictionary(forKey: backupKey) as? [String: [String: Any]],
+              !backup.isEmpty else { return }
         for screen in NSScreen.screens {
-            let id = Self.id(of: screen)
-            guard let string = backup[id], let url = URL(string: string) else { continue }
-            try? NSWorkspace.shared.setDesktopImageURL(url, for: screen, options: savedOptions[id] ?? [:])
+            guard let entry = backup[Self.id(of: screen)],
+                  let string = entry["url"] as? String, let url = URL(string: string) else { continue }
+            try? NSWorkspace.shared.setDesktopImageURL(url, for: screen, options: Self.options(from: entry))
         }
         UserDefaults.standard.removeObject(forKey: backupKey)
+    }
+
+    private static func plist(from options: [NSWorkspace.DesktopImageOptionKey: Any]) -> [String: Any] {
+        var result: [String: Any] = [:]
+        if let scaling = options[.imageScaling] as? NSNumber { result["scaling"] = scaling.intValue }
+        if let clipping = options[.allowClipping] as? NSNumber { result["clipping"] = clipping.boolValue }
+        if let color = options[.fillColor] as? NSColor,
+           let data = try? NSKeyedArchiver.archivedData(withRootObject: color, requiringSecureCoding: true) {
+            result["fill"] = data
+        }
+        return result
+    }
+
+    private static func options(from plist: [String: Any]) -> [NSWorkspace.DesktopImageOptionKey: Any] {
+        var result: [NSWorkspace.DesktopImageOptionKey: Any] = [:]
+        if let scaling = plist["scaling"] as? Int { result[.imageScaling] = scaling }
+        if let clipping = plist["clipping"] as? Bool { result[.allowClipping] = clipping }
+        if let data = plist["fill"] as? Data,
+           let color = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSColor.self, from: data) {
+            result[.fillColor] = color
+        }
+        return result
     }
 
     // MARK: - Private

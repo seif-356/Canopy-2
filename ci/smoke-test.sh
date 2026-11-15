@@ -1,0 +1,58 @@
+#!/bin/bash
+# Launches Canopy 2 in each smoke-test scene on a real Mac (the CI runner),
+# screenshots it, and collects logs and crash reports into OUT.
+# Usage: ci/smoke-test.sh path/to/Canopy2.app [OUT]
+set -uo pipefail
+
+APP="${1:?Usage: $0 path/to/Canopy2.app [OUT]}"
+OUT="${2:-smoke}"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+BIN="$APP/Contents/MacOS/Canopy2"
+mkdir -p "$OUT"
+: > "$OUT/errors.txt"
+
+sw_vers > "$OUT/system.txt"
+system_profiler SPDisplaysDataType 2>/dev/null | grep -E "Resolution|Display Type|Main Display" >> "$OUT/system.txt" || true
+
+echo "Building the fake player"
+swiftc -O -o "$OUT/fake-player" "$ROOT/ci/FakePlayer.swift" 2>&1 | tail -5
+"$OUT/fake-player" 900 "Blinding Lights" "The Weeknd" "After Hours" 200 > "$OUT/fake-player.log" 2>&1 &
+FAKE=$!
+sleep 3
+
+# What the MediaRemote adapter sees (should be the fake song).
+/usr/bin/perl "$APP/Contents/Resources/mediaremote-adapter.pl" \
+  "$APP/Contents/Frameworks/MediaRemoteAdapter.framework" get --no-artwork > "$OUT/adapter-get.json" 2>&1 || true
+
+shoot() {
+  local scene="$1" wait="$2"
+  shift 2
+  echo "Scene: $scene"
+  "$BIN" -smokeScene "$scene" "$@" > "$OUT/$scene.log" 2>&1 &
+  local pid=$!
+  sleep "$wait"
+  if ! kill -0 "$pid" 2>/dev/null; then
+    echo "$scene: app exited early" >> "$OUT/errors.txt"
+  fi
+  screencapture -x "$OUT/$scene.png" 2>> "$OUT/errors.txt" || echo "$scene: screencapture failed" >> "$OUT/errors.txt"
+  kill "$pid" 2>/dev/null
+  wait "$pid" 2>/dev/null
+  sleep 1
+}
+
+shoot notch-open 8
+shoot notch-closed 9
+shoot lyrics 10
+shoot shelf 6
+shoot hud 5
+shoot status 5
+shoot banner 5
+shoot settings 6
+shoot lockscreen 9
+shoot desktop 10 -desktopSkin YES
+
+kill "$FAKE" 2>/dev/null
+cp ~/Library/Logs/DiagnosticReports/Canopy2* "$OUT/" 2>/dev/null || true
+ls -la "$OUT"
+echo "--- errors ---"
+cat "$OUT/errors.txt"

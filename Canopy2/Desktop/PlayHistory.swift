@@ -31,13 +31,15 @@ final class PlayHistory: ObservableObject {
         items.insert(PlayedTrack(id: track.identity, title: track.title, artist: track.artist,
                                  bundleIdentifier: track.bundleIdentifier), at: 0)
         if items.count > limit { items.removeLast(items.count - limit) }
+        let kept = Set(items.map(\.id))
+        thumbnails = thumbnails.filter { kept.contains($0.key) }
         if let data = try? JSONEncoder().encode(items) {
             UserDefaults.standard.set(data, forKey: key)
         }
     }
 
     func setArtwork(_ image: NSImage?, for identity: String?) {
-        guard let image, let identity, thumbnails[identity] == nil else { return }
+        guard let image, let identity, items.contains(where: { $0.id == identity }) else { return }
         thumbnails[identity] = image.thumbnail(side: 80)
     }
 }

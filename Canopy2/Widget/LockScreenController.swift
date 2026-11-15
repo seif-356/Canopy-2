@@ -37,7 +37,9 @@ final class LockScreenController {
         background.restore()
 
         // New song while locked: update the background to its artwork.
+        // Artwork is published just before its track, so read the track on the next pass.
         player.$artwork
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] artwork in
                 MainActor.assumeIsolated { self?.artworkChanged(artwork) }
             }
@@ -102,6 +104,24 @@ final class LockScreenController {
         window.contentView = host
         window.orderFrontRegardless()
         skyLight.moveToLockScreen(window)
+        self.window = window
+    }
+
+    /// Smoke test only: the lock-screen layout in a normal full-screen window, over the
+    /// blurred artwork with a stand-in clock, so CI can screenshot it without locking.
+    func showPreview() {
+        guard let screen = NSScreen.screens.first else { return }
+        let window = NSWindow(contentRect: screen.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.level = .floating
+        window.isReleasedWhenClosed = false
+        let host = NSHostingView(rootView: LockScreenPreview(
+            player: player, lyrics: lyrics, battery: battery, headphones: headphones, weather: weather,
+            screen: screen.frame
+        ))
+        host.sizingOptions = []
+        window.contentView = host
+        window.setFrame(screen.frame, display: true)
+        window.orderFrontRegardless()
         self.window = window
     }
 

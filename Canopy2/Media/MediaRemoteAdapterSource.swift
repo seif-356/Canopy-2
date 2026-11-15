@@ -44,6 +44,8 @@ final class MediaRemoteAdapterSource: MediaSource {
     private var process: Process?
     private var state: [String: Any] = [:]
     private var lastIdentity: String?
+    /// When artworkData last arrived, to tell early art for a new song from stale art.
+    private var artworkReceivedAt = Date.distantPast
     private var isStopping = false
     private var failures = 0
     private var launchDate = Date()
@@ -161,12 +163,17 @@ final class MediaRemoteAdapterSource: MediaSource {
 
         let track = makeTrack()
         var update = MediaUpdate(track: track)
-        // Attach artwork when it changed, or when the song changed (artwork may have
-        // arrived in an earlier message than the new title).
         let identityChanged = track?.identity != lastIdentity
         lastIdentity = track?.identity
-        if identityChanged || payload["artworkData"] != nil,
-           let base64 = state["artworkData"] as? String {
+        let artworkInMessage = payload["artworkData"].map { !($0 is NSNull) } ?? false
+        if artworkInMessage { artworkReceivedAt = Date() }
+
+        // On a song change, cached artwork belongs to the old song unless it arrived
+        // just now (some players send the new art a moment before the new title).
+        if identityChanged && !artworkInMessage && Date().timeIntervalSince(artworkReceivedAt) > 1.5 {
+            state.removeValue(forKey: "artworkData")
+        }
+        if identityChanged || artworkInMessage, let base64 = state["artworkData"] as? String {
             update.artworkData = Data(base64Encoded: base64, options: .ignoreUnknownCharacters)
         }
         onUpdate?(update)

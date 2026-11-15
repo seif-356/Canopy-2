@@ -147,3 +147,32 @@ private struct InfoChip<Content: View>: View {
             .overlay(Capsule().strokeBorder(Color.white.opacity(0.15), lineWidth: 1))
     }
 }
+
+/// Smoke-test stand-in for the lock screen: blurred artwork, a clock where macOS
+/// draws its own, and the player where the real one goes.
+struct LockScreenPreview: View {
+    @ObservedObject var player: NowPlayingService
+    @ObservedObject var lyrics: LyricsService
+    @ObservedObject var battery: BatteryMonitor
+    @ObservedObject var headphones: AirPodsMonitor
+    @ObservedObject var weather: WeatherService
+    let screen: NSRect
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            DesktopBackground(player: player)
+            DesktopClock()
+                .scaleEffect(0.6, anchor: .top)
+                .padding(.top, screen.height * 0.04)
+            LockScreenView(
+                player: player, lyrics: lyrics, battery: battery, headphones: headphones, weather: weather,
+                artworkSide: LockScreenView.artworkSide(for: screen), showsArtwork: true, showsInfoRow: true
+            )
+            .padding(.top, screen.height * LockScreenView.clockFraction - 30)
+        }
+        .frame(width: screen.width, height: screen.height)
+        .foregroundStyle(.white)
+        .environment(\.colorScheme, .dark)
+        .ignoresSafeArea()
+    }
+}

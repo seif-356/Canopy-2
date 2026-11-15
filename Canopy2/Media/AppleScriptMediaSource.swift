@@ -15,7 +15,10 @@ final class AppleScriptMediaSource: MediaSource {
     private var needsAnotherRefresh = false
     private var ticks = 0
     private var lastTrack: Track?
+    /// Song whose Music artwork was fetched successfully.
     private var artworkIdentity: String?
+    /// Failed fetches for the current song; retried on later polls, up to a limit.
+    private var artworkAttempts: (identity: String, count: Int)?
 
     func start() {
         let distributed: NotificationCenter = DistributedNotificationCenter.default()
@@ -106,13 +109,17 @@ final class AppleScriptMediaSource: MediaSource {
         }
         onUpdate?(update)
 
-        // Music artwork comes as raw data, fetched once per song.
-        guard let track = best?.track, track.identity != artworkIdentity else { return }
-        artworkIdentity = track.identity
-        guard MediaPlayer(bundleIdentifier: track.bundleIdentifier) == .music else { return }
+        // Music artwork comes as raw data. Streamed songs may not have it at first,
+        // so retry on the next few polls.
+        guard let track = best?.track, track.identity != artworkIdentity,
+              MediaPlayer(bundleIdentifier: track.bundleIdentifier) == .music else { return }
+        let attempts = artworkAttempts?.identity == track.identity ? artworkAttempts?.count ?? 0 : 0
+        guard attempts < 5 else { return }
+        artworkAttempts = (track.identity, attempts + 1)
         Task {
             guard let data = await MediaScripts.musicArtworkData(),
                   let current = lastTrack, current.identity == track.identity else { return }
+            artworkIdentity = track.identity
             onUpdate?(MediaUpdate(track: current, artworkData: data))
         }
     }
