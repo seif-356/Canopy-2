@@ -81,6 +81,7 @@ final class NowPlayingService: ObservableObject {
     }
 
     private func use(_ newSource: MediaSource, description: String) {
+        NSLog("Canopy2 media: using %@", description)
         source?.stop()
         source = newSource
         sourceDescription = description

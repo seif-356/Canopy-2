@@ -7,6 +7,8 @@ struct DesktopSkinView: View {
     @ObservedObject var player: NowPlayingService
     @ObservedObject var lyrics: LyricsService
     @ObservedObject var history: PlayHistory
+    /// Menu bar and Dock space to keep clear of.
+    var insets = EdgeInsets()
 
     var body: some View {
         GeometryReader { proxy in
@@ -15,7 +17,7 @@ struct DesktopSkinView: View {
 
                 VStack {
                     DesktopClock()
-                        .padding(.top, 44)
+                        .padding(.top, insets.top + 16)
                     Spacer()
                 }
 
@@ -25,20 +27,21 @@ struct DesktopSkinView: View {
                         .frame(maxHeight: proxy.size.height * 0.62, alignment: .top)
                     Spacer()
                 }
-                .padding(.leading, 28)
-                .padding(.top, 70)
+                .padding(.leading, insets.leading + 28)
+                .padding(.top, insets.top + 40)
+                .padding(.bottom, insets.bottom + 110)
                 .frame(maxHeight: .infinity, alignment: .top)
 
                 center
                     .padding(.top, proxy.size.height * 0.28)
-                    .padding(.bottom, 110)
+                    .padding(.bottom, insets.bottom + 110)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 VStack {
                     Spacer()
                     PlayerBar(state: state, player: player)
                         .frame(maxWidth: 760)
-                        .padding(.bottom, 26)
+                        .padding(.bottom, insets.bottom + 20)
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)

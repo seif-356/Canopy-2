@@ -27,6 +27,7 @@ final class SettingsWindowController {
             window.title = "Canopy 2 Settings"
             window.styleMask = [.titled, .closable]
             window.isReleasedWhenClosed = false
+            window.setContentSize(NSSize(width: 620, height: 500))
             window.center()
             self.window = window
         }

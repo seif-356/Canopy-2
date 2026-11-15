@@ -14,6 +14,9 @@ mkdir -p "$OUT"
 sw_vers > "$OUT/system.txt"
 system_profiler SPDisplaysDataType 2>/dev/null | grep -E "Resolution|Display Type|Main Display" >> "$OUT/system.txt" || true
 
+ls -la "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks" > "$OUT/bundle.txt" 2>&1
+defaults write com.seif356.Canopy2 weatherCity "Cupertino"
+
 echo "Building the fake player"
 swiftc -O -o "$OUT/fake-player" "$ROOT/ci/FakePlayer.swift" 2>&1 | tail -5
 "$OUT/fake-player" 900 "Blinding Lights" "The Weeknd" "After Hours" 200 > "$OUT/fake-player.log" 2>&1 &

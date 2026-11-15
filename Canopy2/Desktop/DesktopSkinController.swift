@@ -127,7 +127,8 @@ final class DesktopSkinController {
         window.isReleasedWhenClosed = false
         window.acceptsMouseMovedEvents = true
         let host = FirstClickHostingView(rootView: DesktopSkinView(
-            state: state, player: player, lyrics: lyrics, history: history
+            state: state, player: player, lyrics: lyrics, history: history,
+            insets: Self.insets(of: screen)
         ))
         host.sizingOptions = []
         window.contentView = host
@@ -142,11 +143,33 @@ final class DesktopSkinController {
         observer = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated {
-                guard let screen = NSScreen.screens.first else { return }
-                self?.window?.setFrame(screen.frame, display: true)
-            }
+            MainActor.assumeIsolated { self?.relayout() }
         }
+    }
+}
+
+extension DesktopSkinController {
+    /// Space taken by the menu bar (top) and the Dock (bottom, left or right).
+    static func insets(of screen: NSScreen) -> EdgeInsets {
+        let frame = screen.frame
+        let visible = screen.visibleFrame
+        return EdgeInsets(
+            top: frame.maxY - visible.maxY,
+            leading: visible.minX - frame.minX,
+            bottom: visible.minY - frame.minY,
+            trailing: frame.maxX - visible.maxX
+        )
+    }
+
+    /// The screen or the Dock changed: resize and re-inset.
+    fileprivate func relayout() {
+        guard let window, let screen = NSScreen.screens.first,
+              let host = window.contentView as? FirstClickHostingView<DesktopSkinView> else { return }
+        window.setFrame(screen.frame, display: true)
+        host.rootView = DesktopSkinView(
+            state: state, player: host.rootView.player, lyrics: host.rootView.lyrics,
+            history: host.rootView.history, insets: Self.insets(of: screen)
+        )
     }
 }
 

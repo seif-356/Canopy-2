@@ -14,17 +14,24 @@ final class MediaRemoteAdapterSource: MediaSource {
     }
 
     /// Present when the app was built with the adapter embedded (the CI build is).
+    /// Looked up by explicit paths inside the bundle, the layout the embed script creates.
     static var bundledPaths: Paths? {
-        guard let script = Bundle.main.url(forResource: "mediaremote-adapter", withExtension: "pl"),
-              let frameworks = Bundle.main.privateFrameworksURL else { return nil }
-        let framework = frameworks.appendingPathComponent("MediaRemoteAdapter.framework")
-        guard FileManager.default.fileExists(atPath: framework.path(percentEncoded: false)) else { return nil }
-        let testClient = Bundle.main.url(forAuxiliaryExecutable: "MediaRemoteAdapterTestClient")
-        return Paths(
-            script: script.path(percentEncoded: false),
-            framework: framework.path(percentEncoded: false),
-            testClient: testClient?.path(percentEncoded: false)
-        )
+        let contents = Bundle.main.bundleURL.appendingPathComponent("Contents", isDirectory: true)
+        let script = contents.appendingPathComponent("Resources/mediaremote-adapter.pl", isDirectory: false)
+            .path(percentEncoded: false)
+        let framework = contents.appendingPathComponent("Frameworks/MediaRemoteAdapter.framework", isDirectory: false)
+            .path(percentEncoded: false)
+        let testClient = contents.appendingPathComponent("MacOS/MediaRemoteAdapterTestClient", isDirectory: false)
+            .path(percentEncoded: false)
+        let fileManager = FileManager.default
+        let hasScript = fileManager.fileExists(atPath: script)
+        let hasFramework = fileManager.fileExists(atPath: framework)
+        let hasClient = fileManager.isExecutableFile(atPath: testClient)
+        NSLog("Canopy2 media: bundle %@ script=%@ framework=%@ testClient=%@",
+              Bundle.main.bundleURL.path(percentEncoded: false),
+              hasScript ? "yes" : "no", hasFramework ? "yes" : "no", hasClient ? "yes" : "no")
+        guard hasScript, hasFramework else { return nil }
+        return Paths(script: script, framework: framework, testClient: hasClient ? testClient : nil)
     }
 
     /// Runs the adapter's self-test. False means a macOS update broke it: use AppleScript.
@@ -33,6 +40,8 @@ final class MediaRemoteAdapterSource: MediaSource {
         let result = await ProcessRunner.runAsync(
             "/usr/bin/perl", [paths.script, paths.framework, testClient, "test"], timeout: 20
         )
+        NSLog("Canopy2 media: adapter self-test exit=%d timedOut=%@ %@",
+              result.status, result.timedOut ? "yes" : "no", result.errorOutput)
         return result.status == 0 && !result.timedOut
     }
 
