@@ -41,6 +41,8 @@ struct Banner: Identifiable, Equatable {
         case notification(bundleIdentifier: String)
         /// Headphones connected (AirPods, Beats, …).
         case device
+        /// Something landed on the Shelf (e.g. by AirDrop).
+        case shelf
     }
 
     let id = UUID()

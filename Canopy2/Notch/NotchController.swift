@@ -20,6 +20,8 @@ final class NotchController {
     let history = PlayHistory()
 
     private let volumeObserver = VolumeObserver()
+    private let airDropWatcher = AirDropWatcher()
+    private let airDropAnimator = AirDropAnimator()
     private let keyTap = MediaKeyTap()
     private let widget: WidgetController
     private let lockScreen: LockScreenController
@@ -115,6 +117,9 @@ final class NotchController {
         headphones.onConnect = { [weak self] status in
             self?.headphonesConnected(status)
         }
+        airDropWatcher.onArrival = { [weak self] file in
+            self?.airDropArrived(file)
+        }
 
         battery.start()
         headphones.start()
@@ -155,6 +160,7 @@ final class NotchController {
         }
         if changed(Prefs.lockScreenWidget) { lockScreen.isEnabled = Prefs.bool(Prefs.lockScreenWidget) }
         if changed(Prefs.desktopSkin) { desktopSkin.update(enabled: Prefs.bool(Prefs.desktopSkin)) }
+        if changed(Prefs.airDropShelf) { airDropWatcher.setEnabled(Prefs.bool(Prefs.airDropShelf)) }
         if changed(Prefs.weatherEnabled) || changed(Prefs.weatherUnit) || changed(Prefs.weatherCity) {
             // Wait for typing in the city field to settle before looking it up.
             weatherConfigureTask?.cancel()
@@ -272,6 +278,8 @@ final class NotchController {
             }
         case .device:
             break
+        case .shelf:
+            open(tab: .shelf)
         }
     }
 
@@ -314,6 +322,20 @@ final class NotchController {
     private func headphonesConnected(_ status: HeadphoneStatus) {
         guard Prefs.bool(Prefs.headphoneBanner) else { return }
         showBanner(Banner(kind: .device, icon: nil, symbol: status.symbol, title: status.name, subtitle: status.summary))
+    }
+
+    // MARK: - AirDrop
+
+    /// Rainbow portal, the file flies into the notch, lands on the Shelf.
+    private func airDropArrived(_ file: URL) {
+        airDropAnimator.play(file, notchHeight: model.geometry?.notchSize.height ?? 32) { [weak self] file in
+            guard let self else { return }
+            self.shelf.add([file])
+            self.showBanner(Banner(
+                kind: .shelf, icon: nil, symbol: "arrow.down.circle.fill",
+                title: "AirDrop", subtitle: "\(file.lastPathComponent) is on the Shelf"
+            ))
+        }
     }
 
     // MARK: - Volume & brightness
@@ -488,11 +510,29 @@ final class NotchController {
             bannerHideTask?.cancel()
         case "settings":
             SettingsWindowController.shared.show()
+        case "airdrop":
+            airDropAnimator.speed = 4 // slowed down so a screenshot catches it mid-flight
+            if let sample = Self.smokeSampleImage() { airDropArrived(sample) }
         case "lockscreen":
             lockScreen.showPreview()
         default:
             break // "notch-closed", "desktop": nothing to do beyond launch flags
         }
+    }
+
+    /// A colorful PNG in the temporary folder, standing in for an AirDropped photo.
+    private static func smokeSampleImage() -> URL? {
+        let size = NSSize(width: 480, height: 480)
+        let image = NSImage(size: size, flipped: false) { rect in
+            NSGradient(colors: [.systemTeal, .systemBlue, .systemPurple])?.draw(in: rect, angle: 60)
+            NSColor.white.withAlphaComponent(0.85).setFill()
+            NSBezierPath(ovalIn: NSRect(x: 150, y: 150, width: 180, height: 180)).fill()
+            return true
+        }
+        guard let tiff = image.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]) else { return nil }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("AirDrop Smoke Test.png")
+        return (try? png.write(to: url)) != nil ? url : nil
     }
 
     /// Opens the notch for a few seconds so it's obvious the app is running

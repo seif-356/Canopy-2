@@ -32,6 +32,7 @@ struct SettingsView: View {
 
 private struct GeneralSettings: View {
     @AppStorage(Prefs.showOnNotchless) private var showOnNotchless = true
+    @AppStorage(Prefs.airDropShelf) private var airDropShelf = true
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var loginError: String?
 
@@ -43,8 +44,9 @@ private struct GeneralSettings: View {
                     Text(loginError).font(.caption).foregroundStyle(.red)
                 }
                 Toggle("Show a notch on displays without one", isOn: $showOnNotchless)
+                Toggle("Animate AirDrops and put them on the Shelf", isOn: $airDropShelf)
             } footer: {
-                Text("Hover over the notch to open it. Drag files onto it to put them on the shelf.")
+                Text("Hover over the notch to open it. Drag files onto it to put them on the shelf. AirDrop arrivals are found in your Downloads folder, so macOS asks once to allow access to it.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

@@ -84,14 +84,17 @@ final class LockScreenController {
             artworkSide: LockScreenView.artworkSide(for: screenFrame),
             showsArtwork: position == .center,
             showsInfoRow: position == .center && Prefs.bool(Prefs.lockScreenInfoRow)
-        ))
+        ).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top))
         host.sizingOptions = []
         let size = host.fittingSize
         let frame: NSRect
         if position == .center {
-            // Top edge just below the clock.
+            // From just below the clock down to the user picture, wide enough for the
+            // lyrics column, so the layout can change while locked.
             let top = screenFrame.maxY - screenFrame.height * LockScreenView.clockFraction
-            frame = NSRect(x: screenFrame.midX - size.width / 2, y: top - size.height, width: size.width, height: size.height)
+            let width = LockScreenView.layoutWidth(for: screenFrame)
+            let height = max(size.height, screenFrame.height * (1 - LockScreenView.clockFraction - LockScreenView.userAreaFraction) + 60)
+            frame = NSRect(x: screenFrame.midX - width / 2, y: top - height, width: width, height: height)
         } else {
             frame = position.frame(for: size, on: screenFrame)
         }

@@ -40,6 +40,7 @@ enum Prefs {
 
     // Shelf
     static let shelfPaths = "shelfPaths"
+    static let airDropShelf = "airDropShelf"
 
     static func registerDefaults() {
         UserDefaults.standard.register(defaults: [
@@ -64,6 +65,7 @@ enum Prefs {
             weatherUnit: TemperatureUnit.localDefault.rawValue,
             weatherCity: "",
             desktopSkin: false,
+            airDropShelf: true,
             musicTarget: MusicTarget.automatic.rawValue,
         ])
     }
@@ -84,7 +86,7 @@ enum Prefs {
         let keys = [
             showOnNotchless, mediaSource, showMusicActivity, trackBanner, lyricsEnabled, closedLyrics,
             notificationMirroring, volumeHUD, replaceSystemHUD, widgetEnabled, widgetPreset, lockScreenWidget,
-            batteryAlerts, headphoneBanner, weatherEnabled, weatherUnit, weatherCity, desktopSkin,
+            batteryAlerts, headphoneBanner, weatherEnabled, weatherUnit, weatherCity, desktopSkin, airDropShelf,
         ]
         var result: [String: String] = [:]
         for key in keys {

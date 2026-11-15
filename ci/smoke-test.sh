@@ -31,7 +31,9 @@ shoot() {
   local scene="$1" wait="$2"
   shift 2
   echo "Scene: $scene"
-  "$BIN" -smokeScene "$scene" "$@" > "$OUT/$scene.log" 2>&1 &
+  # No Downloads watching in CI (it would raise a permission prompt); the airdrop
+  # scene plays the animation directly.
+  "$BIN" -smokeScene "$scene" -airDropShelf NO "$@" > "$OUT/$scene.log" 2>&1 &
   local pid=$!
   sleep "$wait"
   if ! kill -0 "$pid" 2>/dev/null; then
@@ -53,6 +55,7 @@ shoot banner 5
 shoot settings 6
 shoot lockscreen 9
 shoot desktop 10 -desktopSkin YES
+shoot airdrop 6
 
 kill "$FAKE" 2>/dev/null
 

@@ -2,6 +2,8 @@ import SwiftUI
 
 /// Lock-screen player: big artwork under the clock, a small glass control card
 /// below it (title, live bars, lyric line, progress with time left, controls).
+/// With synced lyrics it switches to two columns: artwork and controls on the
+/// left, the lyrics scrolling on the right.
 struct LockScreenView: View {
     @ObservedObject var player: NowPlayingService
     @ObservedObject var lyrics: LyricsService
@@ -17,6 +19,13 @@ struct LockScreenView: View {
     /// Share kept free at the bottom for the user picture, name and password field.
     static let userAreaFraction: CGFloat = 0.24
     static let cardWidth: CGFloat = 290
+    static let lyricsWidth: CGFloat = 400
+    static let columnSpacing: CGFloat = 48
+
+    /// Room for both columns of the lyrics layout.
+    static func layoutWidth(for screen: NSRect) -> CGFloat {
+        min(screen.width * 0.92, artworkSide(for: screen) + columnSpacing + lyricsWidth + 80)
+    }
     /// Card, info row, spacing and padding, used to size the artwork to fit.
     private static let chromeHeight: CGFloat = 230
 
@@ -27,18 +36,37 @@ struct LockScreenView: View {
         return max(120, min(byWidth, available))
     }
 
+    private var showsLyricsColumn: Bool {
+        showsArtwork && lyrics.status == .synced && player.track != nil
+    }
+
     var body: some View {
         VStack(spacing: 18) {
             if showsInfoRow {
                 LockScreenInfoRow(battery: battery, headphones: headphones, weather: weather)
             }
-            if showsArtwork {
-                DepthArtworkView(image: player.artwork, size: artworkSide)
+            if showsLyricsColumn {
+                HStack(alignment: .center, spacing: Self.columnSpacing) {
+                    VStack(spacing: 16) {
+                        DepthArtworkView(image: player.artwork, size: artworkSide)
+                        LockScreenControls(player: player, lyrics: lyrics, showsLyricLine: false)
+                            .frame(width: Self.cardWidth)
+                            .shadow(color: .black.opacity(0.3), radius: 16, y: 6)
+                    }
+                    LockScreenLyrics(player: player, lyrics: lyrics)
+                        .frame(width: Self.lyricsWidth, height: artworkSide + 110, alignment: .leading)
+                }
+                .transition(.opacity)
+            } else {
+                if showsArtwork {
+                    DepthArtworkView(image: player.artwork, size: artworkSide)
+                }
+                LockScreenControls(player: player, lyrics: lyrics)
+                    .frame(width: Self.cardWidth)
+                    .shadow(color: .black.opacity(0.3), radius: 16, y: 6)
             }
-            LockScreenControls(player: player, lyrics: lyrics)
-                .frame(width: Self.cardWidth)
-                .shadow(color: .black.opacity(0.3), radius: 16, y: 6)
         }
+        .animation(.easeInOut(duration: 0.4), value: showsLyricsColumn)
         .padding(30)
         .foregroundStyle(.white)
         .environment(\.colorScheme, .dark)
@@ -48,6 +76,8 @@ struct LockScreenView: View {
 struct LockScreenControls: View {
     @ObservedObject var player: NowPlayingService
     @ObservedObject var lyrics: LyricsService
+    /// Off when the lyrics have their own column.
+    var showsLyricLine = true
 
     var body: some View {
         VStack(spacing: 7) {
@@ -71,7 +101,7 @@ struct LockScreenControls: View {
                 TimelineView(.periodic(from: .now, by: 0.25)) { context in
                     let time = track.elapsed(at: context.date)
                     VStack(spacing: 6) {
-                        if lyrics.status == .synced {
+                        if showsLyricLine, lyrics.status == .synced {
                             let line = lyrics.line(at: time)?.text ?? ""
                             Text(line.isEmpty ? "♪" : line)
                                 .font(.system(size: 12, weight: .semibold))
@@ -174,5 +204,42 @@ struct LockScreenPreview: View {
         .foregroundStyle(.white)
         .environment(\.colorScheme, .dark)
         .ignoresSafeArea()
+    }
+}
+
+/// Synced lyrics for the lock screen: the current line large and bright, the one
+/// before it faded, the next few dimmed, moving up as the song plays.
+struct LockScreenLyrics: View {
+    @ObservedObject var player: NowPlayingService
+    @ObservedObject var lyrics: LyricsService
+
+    var body: some View {
+        if let track = player.track, !lyrics.lines.isEmpty {
+            TimelineView(.periodic(from: .now, by: 0.25)) { context in
+                let current = lyrics.index(at: track.elapsed(at: context.date))
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(visibleLines(around: current)) { line in
+                        let isCurrent = line.id == current
+                        let isPast = current.map { line.id < $0 } ?? false
+                        Text(line.text.isEmpty ? "♪" : line.text)
+                            .font(.system(size: isCurrent ? 26 : 21, weight: .bold))
+                            .foregroundStyle(Color.white.opacity(isCurrent ? 1 : (isPast ? 0.28 : 0.45)))
+                            .shadow(color: .black.opacity(isCurrent ? 0.35 : 0), radius: 10, y: 3)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .animation(.easeInOut(duration: 0.45), value: current)
+            }
+        }
+    }
+
+    /// The line before the current one and the next four.
+    private func visibleLines(around index: Int?) -> [LyricLine] {
+        let lines = lyrics.lines
+        let start = max(0, (index ?? 0) - 1)
+        let end = min(lines.count, start + 6)
+        return Array(lines[start..<end])
     }
 }
