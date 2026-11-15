@@ -55,7 +55,7 @@ shoot banner 5
 shoot settings 6
 shoot lockscreen 9
 shoot desktop 10 -desktopSkin YES
-shoot airdrop 6
+shoot airdrop 8
 
 kill "$FAKE" 2>/dev/null
 

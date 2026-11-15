@@ -207,8 +207,9 @@ struct LockScreenPreview: View {
     }
 }
 
-/// Synced lyrics for the lock screen: the current line large and bright, the one
-/// before it faded, the next few dimmed, moving up as the song plays.
+/// Synced lyrics for the lock screen: scrolls so the current line sits near the
+/// top; the current line is bright, past lines faded, upcoming ones dimmed. Every
+/// line keeps the same size, so nothing re-wraps or jumps while it scrolls.
 struct LockScreenLyrics: View {
     @ObservedObject var player: NowPlayingService
     @ObservedObject var lyrics: LyricsService
@@ -216,30 +217,57 @@ struct LockScreenLyrics: View {
     var body: some View {
         if let track = player.track, !lyrics.lines.isEmpty {
             TimelineView(.periodic(from: .now, by: 0.25)) { context in
-                let current = lyrics.index(at: track.elapsed(at: context.date))
-                VStack(alignment: .leading, spacing: 16) {
-                    ForEach(visibleLines(around: current)) { line in
-                        let isCurrent = line.id == current
-                        let isPast = current.map { line.id < $0 } ?? false
-                        Text(line.text.isEmpty ? "♪" : line.text)
-                            .font(.system(size: isCurrent ? 26 : 21, weight: .bold))
-                            .foregroundStyle(Color.white.opacity(isCurrent ? 1 : (isPast ? 0.28 : 0.45)))
-                            .shadow(color: .black.opacity(isCurrent ? 0.35 : 0), radius: 10, y: 3)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .transition(.opacity.combined(with: .move(edge: .bottom)))
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                .animation(.easeInOut(duration: 0.45), value: current)
+                LockScreenLyricsList(lines: lyrics.lines, current: lyrics.index(at: track.elapsed(at: context.date)))
             }
         }
     }
+}
 
-    /// The line before the current one and the next four.
-    private func visibleLines(around index: Int?) -> [LyricLine] {
-        let lines = lyrics.lines
-        let start = max(0, (index ?? 0) - 1)
-        let end = min(lines.count, start + 6)
-        return Array(lines[start..<end])
+private struct LockScreenLyricsList: View {
+    let lines: [LyricLine]
+    let current: Int?
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 18) {
+                    ForEach(lines) { line in
+                        let isCurrent = line.id == current
+                        let isPast = current.map { line.id < $0 } ?? false
+                        Text(line.text.isEmpty ? "♪" : line.text)
+                            .font(.system(size: 23, weight: .bold))
+                            .foregroundStyle(Color.white.opacity(isCurrent ? 1 : (isPast ? 0.25 : 0.42)))
+                            .shadow(color: .black.opacity(isCurrent ? 0.35 : 0), radius: 10, y: 3)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .id(line.id)
+                    }
+                }
+                .padding(.vertical, 120)
+                .animation(.easeInOut(duration: 0.3), value: current)
+            }
+            .scrollDisabled(true)
+            .mask(
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0),
+                        .init(color: .black, location: 0.12),
+                        .init(color: .black, location: 0.8),
+                        .init(color: .clear, location: 1),
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .onAppear {
+                if let current { proxy.scrollTo(current, anchor: UnitPoint(x: 0, y: 0.3)) }
+            }
+            .onChange(of: current) { _, newValue in
+                guard let newValue else { return }
+                withAnimation(.easeInOut(duration: 0.5)) {
+                    proxy.scrollTo(newValue, anchor: UnitPoint(x: 0, y: 0.3))
+                }
+            }
+        }
     }
 }
