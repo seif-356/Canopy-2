@@ -138,13 +138,23 @@ struct DesktopClock: View {
     /// Point size of the time.
     var size: CGFloat = 190
 
+    /// "6:36" in 12-hour regions, "18:36" in 24-hour ones; no AM/PM, no leading zero.
+    static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        let pattern = DateFormatter.dateFormat(fromTemplate: "jmm", options: 0, locale: .current) ?? "h:mm"
+        formatter.dateFormat = pattern
+            .replacingOccurrences(of: "a", with: "")
+            .trimmingCharacters(in: .whitespaces)
+        return formatter
+    }()
+
     var body: some View {
         TimelineView(.everyMinute) { context in
             VStack(spacing: -size * 0.03) {
                 Text(context.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
                     .font(.system(size: max(12, size * 0.095), weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.8))
-                Text(context.date.formatted(.dateTime.hour(.defaultDigits(amPM: .omitted)).minute()))
+                Text(Self.timeFormatter.string(from: context.date))
                     .font(.system(size: size, weight: .semibold).width(.compressed))
                     .monospacedDigit()
             }

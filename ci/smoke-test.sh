@@ -55,6 +55,18 @@ shoot lockscreen 9
 shoot desktop 10 -desktopSkin YES
 
 kill "$FAKE" 2>/dev/null
+
+# Small JPEG copies in the log too, so they can be read where artifact
+# downloads aren't reachable. Between SMOKE-IMAGE-BEGIN/END markers, base64.
+for png in "$OUT"/*.png; do
+  name="$(basename "$png" .png)"
+  sips -s format jpeg -s formatOptions 55 -Z 900 "$png" --out "$OUT/$name.jpg" > /dev/null 2>&1 || continue
+  echo "SMOKE-IMAGE-BEGIN $name"
+  base64 -i "$OUT/$name.jpg" | fold -w 900
+  echo "SMOKE-IMAGE-END $name"
+  rm -f "$OUT/$name.jpg"
+done
+
 cp ~/Library/Logs/DiagnosticReports/Canopy2* "$OUT/" 2>/dev/null || true
 ls -la "$OUT"
 echo "--- errors ---"
