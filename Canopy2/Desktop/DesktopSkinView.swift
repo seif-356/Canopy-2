@@ -68,8 +68,11 @@ struct DesktopSkinView: View {
         switch state.panel {
         case .nowPlaying:
             if showsConstellation {
+                // Kept clear of the Recently Played sidebar on the left.
                 ConstellationLyrics(player: player, lyrics: lyrics)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.leading, insets.leading + 28 + 270 + 16)
+                    .padding(.trailing, insets.trailing + 28)
                     .transition(.opacity)
             } else {
                 NowPlayingHero(player: player, lyrics: lyrics, showsLyrics: state.showsLyrics)

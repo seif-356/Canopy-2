@@ -75,11 +75,13 @@ private struct ConstellationShape {
 
     init(count: Int, seed: Int, in rect: CGRect) {
         var random = SeededRandom(seed: seed)
-        let step = rect.width / CGFloat(max(count - 1, 1))
+        // Short lines stay compact and centred instead of spreading edge to edge.
+        let span = min(rect.width, CGFloat(max(count - 1, 0)) * 150)
+        let step = span / CGFloat(max(count - 1, 1))
+        let left = rect.midX - span / 2
         points = (0..<count).map { index in
-            let x = count == 1
-                ? rect.midX
-                : rect.minX + step * CGFloat(index) + CGFloat(random.next(in: -0.3...0.3)) * step
+            let jitter = count == 1 ? 0 : CGFloat(random.next(in: -0.25...0.25)) * step
+            let x = min(max(left + step * CGFloat(index) + jitter, rect.minX), rect.maxX)
             let swing = index.isMultiple(of: 2) ? 1.0 : -0.7
             let y = rect.midY + CGFloat(random.next(in: 0.15...0.5) * swing) * rect.height
             return CGPoint(x: x, y: y)
@@ -102,7 +104,7 @@ struct ConstellationCanvas: View {
 
     var body: some View {
         Canvas { context, size in
-            let band = CGRect(x: size.width * 0.08, y: size.height * 0.18, width: size.width * 0.8, height: size.height * 0.6)
+            let band = CGRect(x: size.width * 0.1, y: size.height * 0.18, width: size.width * 0.8, height: size.height * 0.6)
             guard let current else {
                 drawNote(in: &context, at: CGPoint(x: size.width / 2, y: size.height / 2))
                 return
@@ -112,10 +114,10 @@ struct ConstellationCanvas: View {
                 let fade = 1 - min(max((time - lines[current].time) / 0.9, 0), 1)
                 if fade > 0 {
                     drawLine(current - 1, in: &context, band: band.offsetBy(dx: 0, dy: -band.height * 0.25 * (1 - fade)),
-                             opacity: fade * 0.5, isCurrent: false)
+                             opacity: fade * 0.5, isCurrent: false, canvas: size)
                 }
             }
-            drawLine(current, in: &context, band: band, opacity: 1, isCurrent: true)
+            drawLine(current, in: &context, band: band, opacity: 1, isCurrent: true, canvas: size)
         }
     }
 
@@ -123,7 +125,7 @@ struct ConstellationCanvas: View {
         context.draw(Text("♪").font(.system(size: 34, weight: .bold)).foregroundStyle(.white.opacity(0.7)), at: point)
     }
 
-    private func drawLine(_ index: Int, in context: inout GraphicsContext, band: CGRect, opacity: Double, isCurrent: Bool) {
+    private func drawLine(_ index: Int, in context: inout GraphicsContext, band: CGRect, opacity: Double, isCurrent: Bool, canvas: CGSize) {
         let words = WordTiming.words(in: lines, at: index)
         guard !words.isEmpty else {
             if isCurrent { drawNote(in: &context, at: CGPoint(x: band.midX, y: band.midY)) }
@@ -156,19 +158,29 @@ struct ConstellationCanvas: View {
 
             if index == sung {
                 drawCrosshair(in: &context, at: point, alpha: alpha)
+                let text = context.resolve(
+                    Text(word.text).font(.system(size: 40, weight: .heavy)).foregroundStyle(.white.opacity(alpha))
+                )
+                // Right of the star, or left of it when it would run off the edge.
+                let width = text.measure(in: canvas).width
+                let fitsRight = point.x + 14 + width <= canvas.width - 8
                 context.drawLayer { layer in
                     layer.addFilter(.shadow(color: tint.opacity(0.8), radius: 14))
                     layer.draw(
-                        Text(word.text).font(.system(size: 40, weight: .heavy)).foregroundStyle(.white.opacity(alpha)),
-                        at: CGPoint(x: point.x + 14, y: point.y + 10),
-                        anchor: .topLeading
+                        text,
+                        at: CGPoint(x: fitsRight ? point.x + 14 : max(point.x - 14, width + 8), y: point.y + 10),
+                        anchor: fitsRight ? .topLeading : .topTrailing
                     )
                 }
             } else {
+                let text = context.resolve(
+                    Text(word.text).font(.system(size: 14, weight: .semibold)).foregroundStyle(.white.opacity(0.6 * alpha))
+                )
+                let fitsRight = point.x + 7 + text.measure(in: canvas).width <= canvas.width - 8
                 context.draw(
-                    Text(word.text).font(.system(size: 14, weight: .semibold)).foregroundStyle(.white.opacity(0.6 * alpha)),
-                    at: CGPoint(x: point.x + 7, y: point.y - 5),
-                    anchor: .bottomLeading
+                    text,
+                    at: CGPoint(x: fitsRight ? point.x + 7 : point.x - 7, y: point.y - 5),
+                    anchor: fitsRight ? .bottomLeading : .bottomTrailing
                 )
             }
         }
