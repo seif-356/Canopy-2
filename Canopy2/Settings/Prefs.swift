@@ -34,6 +34,10 @@ enum Prefs {
     static let weatherUnit = "weatherUnit"               // TemperatureUnit raw value
     static let weatherCity = "weatherCity"               // empty = use Location Services
 
+    // Lyrics styles
+    static let lockScreenLyricsStyle = "lockScreenLyricsStyle"   // LyricsStyle raw value
+    static let desktopLyricsStyle = "desktopLyricsStyle"         // LyricsStyle raw value
+
     // Desktop skin
     static let desktopSkin = "desktopSkin"
     static let musicTarget = "musicTarget"               // MusicTarget raw value
@@ -65,6 +69,8 @@ enum Prefs {
             weatherUnit: TemperatureUnit.localDefault.rawValue,
             weatherCity: "",
             desktopSkin: false,
+            lockScreenLyricsStyle: LyricsStyle.lines.rawValue,
+            desktopLyricsStyle: LyricsStyle.constellation.rawValue,
             airDropShelf: true,
             musicTarget: MusicTarget.automatic.rawValue,
         ])
@@ -175,5 +181,22 @@ enum LockScreenPosition: String, CaseIterable, Identifiable {
             y = screen.minY + margin
         }
         return NSRect(x: x, y: y, width: size.width, height: size.height)
+    }
+}
+
+/// How synced lyrics are drawn on the lock screen and the desktop skin.
+enum LyricsStyle: String, CaseIterable, Identifiable {
+    /// Lines that scroll (lock screen) or the current line under the card (desktop).
+    case lines
+    /// Words appear one by one as a star chart.
+    case constellation
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .lines: "Lines"
+        case .constellation: "Constellation"
+        }
     }
 }

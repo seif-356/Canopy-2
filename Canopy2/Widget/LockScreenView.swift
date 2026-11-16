@@ -13,6 +13,7 @@ struct LockScreenView: View {
     let artworkSide: CGFloat
     let showsArtwork: Bool
     let showsInfoRow: Bool
+    @AppStorage(Prefs.lockScreenLyricsStyle) private var lyricsStyle = LyricsStyle.lines.rawValue
 
     /// Share of the screen height taken by the clock at the top of the lock screen.
     static let clockFraction: CGFloat = 0.26
@@ -45,7 +46,17 @@ struct LockScreenView: View {
             if showsInfoRow {
                 LockScreenInfoRow(battery: battery, headphones: headphones, weather: weather)
             }
-            if showsLyricsColumn {
+            if showsLyricsColumn && lyricsStyle == LyricsStyle.constellation.rawValue {
+                VStack(spacing: 12) {
+                    ConstellationLyrics(player: player, lyrics: lyrics)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: artworkSide + 60)
+                    LockScreenControls(player: player, lyrics: lyrics, showsLyricLine: false)
+                        .frame(width: Self.cardWidth)
+                        .shadow(color: .black.opacity(0.3), radius: 16, y: 6)
+                }
+                .transition(.opacity)
+            } else if showsLyricsColumn {
                 HStack(alignment: .center, spacing: Self.columnSpacing) {
                     VStack(spacing: 16) {
                         DepthArtworkView(image: player.artwork, size: artworkSide)

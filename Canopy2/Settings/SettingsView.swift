@@ -238,6 +238,8 @@ private struct WidgetSettings: View {
     @AppStorage(Prefs.lockScreenInfoRow) private var lockScreenInfoRow = true
     @AppStorage(Prefs.desktopSkin) private var desktopSkin = false
     @AppStorage(Prefs.musicTarget) private var musicTarget = MusicTarget.automatic.rawValue
+    @AppStorage(Prefs.desktopLyricsStyle) private var desktopLyricsStyle = LyricsStyle.constellation.rawValue
+    @AppStorage(Prefs.lockScreenLyricsStyle) private var lockScreenLyricsStyle = LyricsStyle.lines.rawValue
 
     var body: some View {
         Form {
@@ -262,6 +264,12 @@ private struct WidgetSettings: View {
                     }
                 }
                 .disabled(!desktopSkin)
+                Picker("Lyrics", selection: $desktopLyricsStyle) {
+                    ForEach(LyricsStyle.allCases) { style in
+                        Text(style.title).tag(style.rawValue)
+                    }
+                }
+                .disabled(!desktopSkin)
             } footer: {
                 Text("""
                     Covers the desktop with the playing song's artwork, a big clock, recently played \
@@ -283,6 +291,12 @@ private struct WidgetSettings: View {
                     .disabled(!lockScreenWidget)
                 Toggle("Show weather, battery and AirPods under the clock", isOn: $lockScreenInfoRow)
                     .disabled(!lockScreenWidget)
+                Picker("Lyrics", selection: $lockScreenLyricsStyle) {
+                    ForEach(LyricsStyle.allCases) { style in
+                        Text(style.title).tag(style.rawValue)
+                    }
+                }
+                .disabled(!lockScreenWidget)
             } footer: {
                 Text("""
                     The background works by swapping your desktop picture (which macOS shows on \

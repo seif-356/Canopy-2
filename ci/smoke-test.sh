@@ -54,6 +54,7 @@ shoot status 5
 shoot banner 5
 shoot settings 6
 shoot lockscreen 9
+shoot lockscreen-constellation 9 -lockScreenLyricsStyle constellation
 shoot desktop 10 -desktopSkin YES
 shoot airdrop 8
 

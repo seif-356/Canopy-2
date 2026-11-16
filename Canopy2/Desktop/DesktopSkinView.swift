@@ -9,6 +9,13 @@ struct DesktopSkinView: View {
     @ObservedObject var history: PlayHistory
     /// Menu bar and Dock space to keep clear of.
     var insets = EdgeInsets()
+    @AppStorage(Prefs.desktopLyricsStyle) private var lyricsStyle = LyricsStyle.constellation.rawValue
+
+    /// Constellation lyrics take the middle of the screen while a song with synced lyrics plays.
+    private var showsConstellation: Bool {
+        lyricsStyle == LyricsStyle.constellation.rawValue && state.showsLyrics
+            && lyrics.status == .synced && player.track != nil
+    }
 
     var body: some View {
         GeometryReader { proxy in
@@ -60,8 +67,14 @@ struct DesktopSkinView: View {
     private var center: some View {
         switch state.panel {
         case .nowPlaying:
-            NowPlayingHero(player: player, lyrics: lyrics, showsLyrics: state.showsLyrics)
-                .transition(.opacity.combined(with: .scale(scale: 0.96)))
+            if showsConstellation {
+                ConstellationLyrics(player: player, lyrics: lyrics)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .transition(.opacity)
+            } else {
+                NowPlayingHero(player: player, lyrics: lyrics, showsLyrics: state.showsLyrics)
+                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+            }
         case .search:
             SearchPanel(state: state)
                 .transition(.opacity.combined(with: .scale(scale: 0.96)))
@@ -103,6 +116,11 @@ struct DesktopBackground: View {
                     startPoint: .top,
                     endPoint: .bottom
                 )
+                // Soft glow around the screen edges in the artwork's color.
+                Rectangle()
+                    .strokeBorder(player.palette.primaryColor.opacity(0.55), lineWidth: 36)
+                    .blur(radius: 34)
+                    .allowsHitTesting(false)
             }
             .animation(.easeInOut(duration: 1.2), value: blurred)
             .onAppear {

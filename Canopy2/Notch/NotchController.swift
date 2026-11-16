@@ -513,7 +513,7 @@ final class NotchController {
         case "airdrop":
             airDropAnimator.speed = 4 // slowed down so a screenshot catches it mid-flight
             if let sample = Self.smokeSampleImage() { airDropArrived(sample) }
-        case "lockscreen":
+        case "lockscreen", "lockscreen-constellation":
             lockScreen.showPreview()
         default:
             break // "notch-closed", "desktop": nothing to do beyond launch flags
