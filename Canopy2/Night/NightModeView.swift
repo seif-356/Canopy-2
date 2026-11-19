@@ -175,15 +175,23 @@ struct EdgeLight: View {
     var body: some View {
         let pulse = Double(levels.level)
         ZStack {
+            // Wide glow spilling into the screen.
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(color, lineWidth: 70)
-                .blur(radius: 55)
-                .opacity(0.3 + 0.6 * pulse)
+                .strokeBorder(color, lineWidth: 110)
+                .blur(radius: 70)
+                .opacity(0.4 + 0.55 * pulse)
+            // Tighter, brighter band.
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(color, lineWidth: 5)
-                .blur(radius: 3)
-                .opacity(0.55 + 0.45 * pulse)
+                .strokeBorder(color, lineWidth: 26)
+                .blur(radius: 16)
+                .opacity(0.6 + 0.4 * pulse)
+            // The lit rim itself.
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.85), lineWidth: 4)
+                .blur(radius: 1.5)
+                .opacity(0.7 + 0.3 * pulse)
         }
+        .blendMode(.plusLighter)
         .allowsHitTesting(false)
         .onAppear { levels.retain() }
         .onDisappear { levels.release() }

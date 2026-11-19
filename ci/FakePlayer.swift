@@ -44,6 +44,8 @@ for command in [commands.playCommand, commands.pauseCommand, commands.togglePlay
 var elapsed = 63.0
 let timer = Timer(timeInterval: 2, repeats: true) { _ in
     elapsed += 2
+    // Loop the middle of the song so later screenshots aren't stuck at the end.
+    if elapsed > duration - 12 { elapsed = 45 }
     var info = center.nowPlayingInfo ?? [:]
     info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = elapsed
     center.nowPlayingInfo = info

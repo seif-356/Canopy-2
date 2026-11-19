@@ -245,7 +245,8 @@ enum EdgeLightMode: String, CaseIterable, Identifiable {
 
     func color(palette: ArtworkPalette) -> Color? {
         switch self {
-        case .artwork: palette.primaryColor
+        // Lightened so it reads as light, not as more of the background.
+        case .artwork: Color(nsColor: palette.primary.blended(withFraction: 0.4, of: .white) ?? palette.primary)
         case .white: Color.white
         case .off: nil
         }
