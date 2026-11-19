@@ -28,7 +28,7 @@ struct NightModeView: View {
 
                 VStack(spacing: 0) {
                     NightClock(size: min(116, proxy.size.height * 0.115))
-                        .padding(.top, max(topInset, 12) + 6)
+                        .padding(.top, max(topInset, 30) + 8)
                     content(in: proxy.size)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .padding(.horizontal, 70)
@@ -177,14 +177,14 @@ struct EdgeLight: View {
         ZStack {
             // Wide glow spilling into the screen.
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(color, lineWidth: 110)
-                .blur(radius: 70)
-                .opacity(0.4 + 0.55 * pulse)
+                .strokeBorder(color, lineWidth: 90)
+                .blur(radius: 65)
+                .opacity(0.28 + 0.5 * pulse)
             // Tighter, brighter band.
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(color, lineWidth: 26)
-                .blur(radius: 16)
-                .opacity(0.6 + 0.4 * pulse)
+                .strokeBorder(color, lineWidth: 18)
+                .blur(radius: 12)
+                .opacity(0.5 + 0.4 * pulse)
             // The lit rim itself.
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(Color.white.opacity(0.85), lineWidth: 4)

@@ -1,6 +1,6 @@
 // Publishes a fake "now playing" song with artwork through MediaPlayer, the way
 // a music app does, so the CI smoke test can screenshot Canopy 2 with media.
-// Usage: fake-player [seconds] [title] [artist] [album] [duration]
+// Usage: fake-player [seconds] [title] [artist] [album] [duration] [start position]
 import AppKit
 import MediaPlayer
 
@@ -10,6 +10,7 @@ let title = arguments.count > 1 ? arguments[1] : "Smoke Test Song"
 let artist = arguments.count > 2 ? arguments[2] : "Canopy CI"
 let album = arguments.count > 3 ? arguments[3] : "Runner Sessions"
 let duration = arguments.count > 4 ? Double(arguments[4]) ?? 214 : 214
+let start = arguments.count > 5 ? Double(arguments[5]) ?? 63 : 63
 
 let size = NSSize(width: 600, height: 600)
 let art = NSImage(size: size, flipped: false) { rect in
@@ -26,7 +27,7 @@ center.nowPlayingInfo = [
     MPMediaItemPropertyArtist: artist,
     MPMediaItemPropertyAlbumTitle: album,
     MPMediaItemPropertyPlaybackDuration: duration,
-    MPNowPlayingInfoPropertyElapsedPlaybackTime: 63.0,
+    MPNowPlayingInfoPropertyElapsedPlaybackTime: start,
     MPNowPlayingInfoPropertyPlaybackRate: 1.0,
     MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
     MPMediaItemPropertyArtwork: MPMediaItemArtwork(boundsSize: size) { _ in art },
@@ -41,7 +42,7 @@ for command in [commands.playCommand, commands.pauseCommand, commands.togglePlay
 
 // Keep re-publishing so it stays the "now playing" app (e.g. after the adapter's
 // self-test briefly publishes its own song).
-var elapsed = 63.0
+var elapsed = start
 let timer = Timer(timeInterval: 2, repeats: true) { _ in
     elapsed += 2
     // Loop the middle of the song so later screenshots aren't stuck at the end.

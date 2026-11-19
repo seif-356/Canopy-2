@@ -57,6 +57,11 @@ shoot lockscreen 9
 shoot lockscreen-constellation 9 -lockScreenLyricsStyle constellation
 shoot desktop 10 -desktopSkin YES
 # Night Mode, without the system audio tap (it would ask for permission).
+# Restart the song in the chorus so the shots land on lyrics, not the outro.
+kill "$FAKE" 2>/dev/null
+"$OUT/fake-player" 600 "Blinding Lights" "The Weeknd" "After Hours" 200 62 >> "$OUT/fake-player.log" 2>&1 &
+FAKE=$!
+sleep 3
 shoot night-words 9 -nightLyricsStyle words -reactToMusic NO
 shoot night-constellation 9 -nightLyricsStyle constellation -reactToMusic NO
 shoot night-wave 9 -nightLyricsStyle wave -reactToMusic NO
