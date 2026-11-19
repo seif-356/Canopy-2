@@ -18,6 +18,7 @@ final class NotchController {
     let headphones = AirPodsMonitor()
     let weather = WeatherService()
     let history = PlayHistory()
+    let levels = AudioLevels()
 
     private let volumeObserver = VolumeObserver()
     private let airDropWatcher = AirDropWatcher()
@@ -59,7 +60,9 @@ final class NotchController {
             player: nowPlaying, lyrics: lyrics, battery: battery, headphones: headphones, weather: weather
         )
         model = NotchModel(nowPlaying: nowPlaying, lyrics: lyrics, shelf: shelf, weather: weather)
-        desktopSkin = DesktopSkinController(player: nowPlaying, lyrics: lyrics, history: history)
+        desktopSkin = DesktopSkinController(player: nowPlaying, lyrics: lyrics, history: history, levels: levels)
+        levels.isPlaying = { [weak nowPlaying] in nowPlaying?.track?.isPlaying ?? false }
+        NightModeController.shared.configure(player: nowPlaying, lyrics: lyrics, levels: levels)
     }
 
     func start() {
@@ -515,6 +518,8 @@ final class NotchController {
             if let sample = Self.smokeSampleImage() { airDropArrived(sample) }
         case "lockscreen", "lockscreen-constellation":
             lockScreen.showPreview()
+        case "night-words", "night-constellation", "night-wave":
+            NightModeController.shared.show()
         default:
             break // "notch-closed", "desktop": nothing to do beyond launch flags
         }

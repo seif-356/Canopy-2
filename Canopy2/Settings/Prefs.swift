@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 /// UserDefaults keys shared by the settings screen (@AppStorage) and the controllers.
 enum Prefs {
@@ -38,6 +39,11 @@ enum Prefs {
     static let lockScreenLyricsStyle = "lockScreenLyricsStyle"   // LyricsStyle raw value
     static let desktopLyricsStyle = "desktopLyricsStyle"         // LyricsStyle raw value
 
+    // Night Mode
+    static let nightLyricsStyle = "nightLyricsStyle"     // LyricsStyle raw value
+    static let nightEdgeLight = "nightEdgeLight"         // EdgeLightMode raw value
+    static let reactToMusic = "reactToMusic"
+
     // Desktop skin
     static let desktopSkin = "desktopSkin"
     static let musicTarget = "musicTarget"               // MusicTarget raw value
@@ -71,6 +77,9 @@ enum Prefs {
             desktopSkin: false,
             lockScreenLyricsStyle: LyricsStyle.lines.rawValue,
             desktopLyricsStyle: LyricsStyle.constellation.rawValue,
+            nightLyricsStyle: LyricsStyle.words.rawValue,
+            nightEdgeLight: EdgeLightMode.artwork.rawValue,
+            reactToMusic: true,
             airDropShelf: true,
             musicTarget: MusicTarget.automatic.rawValue,
         ])
@@ -184,19 +193,61 @@ enum LockScreenPosition: String, CaseIterable, Identifiable {
     }
 }
 
-/// How synced lyrics are drawn on the lock screen and the desktop skin.
+/// How synced lyrics are drawn on the lock screen, the desktop skin and in Night Mode.
 enum LyricsStyle: String, CaseIterable, Identifiable {
-    /// Lines that scroll (lock screen) or the current line under the card (desktop).
+    /// Artwork with the current line (desktop, Night Mode) or scrolling lines (lock screen).
     case lines
+    /// The word being sung, huge, between the one before and the one after.
+    case words
     /// Words appear one by one as a star chart.
     case constellation
+    /// An arc of spikes moving with the music, next to the scrolling lyrics.
+    case wave
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .lines: "Lines"
+        case .words: "Word by word"
         case .constellation: "Constellation"
+        case .wave: "Visualizer"
+        }
+    }
+
+    /// The styles that fit the lock screen's space.
+    static let lockScreenCases: [LyricsStyle] = [.lines, .words, .constellation]
+}
+
+/// The light around the screen edges in Night Mode.
+enum EdgeLightMode: String, CaseIterable, Identifiable {
+    case artwork
+    case white
+    case off
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .artwork: "Artwork color"
+        case .white: "White"
+        case .off: "Off"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .artwork: "lightbulb.led.fill"
+        case .white: "lightbulb.fill"
+        case .off: "lightbulb.slash"
+        }
+    }
+
+    func color(palette: ArtworkPalette) -> Color? {
+        switch self {
+        case .artwork: palette.primaryColor
+        case .white: Color.white
+        case .off: nil
         }
     }
 }

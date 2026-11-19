@@ -56,6 +56,10 @@ shoot settings 6
 shoot lockscreen 9
 shoot lockscreen-constellation 9 -lockScreenLyricsStyle constellation
 shoot desktop 10 -desktopSkin YES
+# Night Mode, without the system audio tap (it would ask for permission).
+shoot night-words 9 -nightLyricsStyle words -reactToMusic NO
+shoot night-constellation 9 -nightLyricsStyle constellation -reactToMusic NO
+shoot night-wave 9 -nightLyricsStyle wave -reactToMusic NO
 shoot airdrop 8
 
 kill "$FAKE" 2>/dev/null

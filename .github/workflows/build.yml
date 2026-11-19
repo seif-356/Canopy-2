@@ -83,7 +83,7 @@ jobs:
           [[ "$ARCHS" == *arm64* && "$ARCHS" == *x86_64* ]]
 
           nm "$BIN" > "$RUNNER_TEMP/symbols.txt"
-          for symbol in NotchController NowPlayingService MediaRemoteAdapterSource LyricsService NotificationMirror WidgetController ShelfStore BatteryMonitor AirPodsMonitor WeatherService; do
+          for symbol in NotchController NowPlayingService MediaRemoteAdapterSource LyricsService NotificationMirror WidgetController ShelfStore BatteryMonitor AirPodsMonitor WeatherService AudioLevels SystemAudioTap NightModeController; do
             grep -q "$symbol" "$RUNNER_TEMP/symbols.txt" || { echo "missing $symbol"; exit 1; }
           done
 
@@ -94,6 +94,7 @@ jobs:
           /usr/libexec/PlistBuddy -c "Print NSAppleEventsUsageDescription" "$APP/Contents/Info.plist"
           /usr/libexec/PlistBuddy -c "Print NSLocationWhenInUseUsageDescription" "$APP/Contents/Info.plist"
           /usr/libexec/PlistBuddy -c "Print NSBluetoothAlwaysUsageDescription" "$APP/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Print NSAudioCaptureUsageDescription" "$APP/Contents/Info.plist"
           test -d "$APP/Contents/Frameworks/MediaRemoteAdapter.framework"
           test -f "$APP/Contents/Resources/mediaremote-adapter.pl"
           test -x "$APP/Contents/MacOS/MediaRemoteAdapterTestClient"

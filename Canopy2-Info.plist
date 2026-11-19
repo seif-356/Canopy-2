@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>Canopy 2 listens to the sound your Mac plays so the Night Mode visualizer and edge light move with the music. Only the loudness is used; nothing is recorded or saved.</string>
+</dict>
+</plist>

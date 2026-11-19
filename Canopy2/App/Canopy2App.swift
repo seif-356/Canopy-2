@@ -10,6 +10,10 @@ struct Canopy2App: App {
         // the way to reach Settings and Quit.
         MenuBarExtra("Canopy 2", systemImage: "rectangle.topthird.inset.filled") {
             Toggle("Desktop Skin", isOn: $desktopSkin)
+            Button("Night Mode") {
+                NightModeController.shared.toggle()
+            }
+            .keyboardShortcut("n")
             Divider()
             Button("Settings…") {
                 SettingsWindowController.shared.show()

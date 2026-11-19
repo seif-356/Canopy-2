@@ -37,6 +37,8 @@ struct LockScreenView: View {
         return max(120, min(byWidth, available))
     }
 
+    private var style: LyricsStyle { LyricsStyle(rawValue: lyricsStyle) ?? .lines }
+
     private var showsLyricsColumn: Bool {
         showsArtwork && lyrics.status == .synced && player.track != nil
     }
@@ -46,11 +48,17 @@ struct LockScreenView: View {
             if showsInfoRow {
                 LockScreenInfoRow(battery: battery, headphones: headphones, weather: weather)
             }
-            if showsLyricsColumn && lyricsStyle == LyricsStyle.constellation.rawValue {
+            if showsLyricsColumn && (style == .constellation || style == .words) {
                 VStack(spacing: 12) {
-                    ConstellationLyrics(player: player, lyrics: lyrics)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: artworkSide + 60)
+                    Group {
+                        if style == .words {
+                            WordByWordLyrics(player: player, lyrics: lyrics, size: min(96, artworkSide * 0.34))
+                        } else {
+                            ConstellationLyrics(player: player, lyrics: lyrics)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: artworkSide + 60)
                     LockScreenControls(player: player, lyrics: lyrics, showsLyricLine: false)
                         .frame(width: Self.cardWidth)
                         .shadow(color: .black.opacity(0.3), radius: 16, y: 6)
@@ -224,11 +232,14 @@ struct LockScreenPreview: View {
 struct LockScreenLyrics: View {
     @ObservedObject var player: NowPlayingService
     @ObservedObject var lyrics: LyricsService
+    var fontSize: CGFloat = 23
 
     var body: some View {
         if let track = player.track, !lyrics.lines.isEmpty {
             TimelineView(.periodic(from: .now, by: 0.25)) { context in
-                LockScreenLyricsList(lines: lyrics.lines, current: lyrics.index(at: track.elapsed(at: context.date)))
+                LockScreenLyricsList(
+                    lines: lyrics.lines, current: lyrics.index(at: track.elapsed(at: context.date)), fontSize: fontSize
+                )
             }
         }
     }
@@ -237,16 +248,17 @@ struct LockScreenLyrics: View {
 private struct LockScreenLyricsList: View {
     let lines: [LyricLine]
     let current: Int?
+    let fontSize: CGFloat
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: fontSize * 0.78) {
                     ForEach(lines) { line in
                         let isCurrent = line.id == current
                         let isPast = current.map { line.id < $0 } ?? false
                         Text(line.text.isEmpty ? "♪" : line.text)
-                            .font(.system(size: 23, weight: .bold))
+                            .font(.system(size: fontSize, weight: .bold))
                             .foregroundStyle(Color.white.opacity(isCurrent ? 1 : (isPast ? 0.25 : 0.42)))
                             .shadow(color: .black.opacity(isCurrent ? 0.35 : 0), radius: 10, y: 3)
                             .fixedSize(horizontal: false, vertical: true)

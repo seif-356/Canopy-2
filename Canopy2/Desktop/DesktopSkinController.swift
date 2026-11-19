@@ -98,13 +98,15 @@ final class DesktopSkinController {
     private let player: NowPlayingService
     private let lyrics: LyricsService
     private let history: PlayHistory
+    private let levels: AudioLevels
     private var window: DesktopSkinWindow?
     private var observer: NSObjectProtocol?
 
-    init(player: NowPlayingService, lyrics: LyricsService, history: PlayHistory) {
+    init(player: NowPlayingService, lyrics: LyricsService, history: PlayHistory, levels: AudioLevels) {
         self.player = player
         self.lyrics = lyrics
         self.history = history
+        self.levels = levels
         state = DesktopSkinState(player: player)
     }
 
@@ -127,7 +129,7 @@ final class DesktopSkinController {
         window.isReleasedWhenClosed = false
         window.acceptsMouseMovedEvents = true
         let host = FirstClickHostingView(rootView: DesktopSkinView(
-            state: state, player: player, lyrics: lyrics, history: history,
+            state: state, player: player, lyrics: lyrics, history: history, levels: levels,
             insets: Self.insets(of: screen)
         ))
         host.sizingOptions = []
@@ -168,7 +170,7 @@ extension DesktopSkinController {
         window.setFrame(screen.frame, display: true)
         host.rootView = DesktopSkinView(
             state: state, player: host.rootView.player, lyrics: host.rootView.lyrics,
-            history: host.rootView.history, insets: Self.insets(of: screen)
+            history: host.rootView.history, levels: host.rootView.levels, insets: Self.insets(of: screen)
         )
     }
 }

@@ -7,20 +7,25 @@ struct DesktopSkinView: View {
     @ObservedObject var player: NowPlayingService
     @ObservedObject var lyrics: LyricsService
     @ObservedObject var history: PlayHistory
+    /// Not observed here: only the visualizer redraws with the levels.
+    let levels: AudioLevels
     /// Menu bar and Dock space to keep clear of.
     var insets = EdgeInsets()
     @AppStorage(Prefs.desktopLyricsStyle) private var lyricsStyle = LyricsStyle.constellation.rawValue
 
-    /// Constellation lyrics take the middle of the screen while a song with synced lyrics plays.
-    private var showsConstellation: Bool {
-        lyricsStyle == LyricsStyle.constellation.rawValue && state.showsLyrics
-            && lyrics.status == .synced && player.track != nil
-    }
+    private var style: LyricsStyle { LyricsStyle(rawValue: lyricsStyle) ?? .constellation }
+    private var lyricsOn: Bool { state.showsLyrics && player.track != nil }
+    private var hasSyncedLyrics: Bool { lyricsOn && lyrics.status == .synced }
 
     var body: some View {
         GeometryReader { proxy in
             ZStack {
                 DesktopBackground(player: player)
+                // Soft glow around the screen edges in the artwork's color.
+                Rectangle()
+                    .strokeBorder(player.palette.primaryColor.opacity(0.55), lineWidth: 36)
+                    .blur(radius: 34)
+                    .allowsHitTesting(false)
 
                 HStack(alignment: .top) {
                     HistorySidebar(history: history, state: state)
@@ -67,14 +72,20 @@ struct DesktopSkinView: View {
     private var center: some View {
         switch state.panel {
         case .nowPlaying:
-            if showsConstellation {
-                // Kept clear of the Recently Played sidebar on the left.
+            switch style {
+            case .constellation where hasSyncedLyrics:
                 ConstellationLyrics(player: player, lyrics: lyrics)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.leading, insets.leading + 28 + 270 + 16)
-                    .padding(.trailing, insets.trailing + 28)
+                    .modifier(ClearOfSidebar(insets: insets))
                     .transition(.opacity)
-            } else {
+            case .words where hasSyncedLyrics:
+                WordByWordLyrics(player: player, lyrics: lyrics, size: 110)
+                    .modifier(ClearOfSidebar(insets: insets))
+                    .transition(.opacity)
+            case .wave where lyricsOn:
+                VisualizerLyrics(player: player, lyrics: lyrics, levels: levels)
+                    .modifier(ClearOfSidebar(insets: insets))
+                    .transition(.opacity)
+            default:
                 NowPlayingHero(player: player, lyrics: lyrics, showsLyrics: state.showsLyrics)
                     .transition(.opacity.combined(with: .scale(scale: 0.96)))
             }
@@ -85,6 +96,18 @@ struct DesktopSkinView: View {
             ArtistPage(state: state, artist: artist)
                 .transition(.opacity.combined(with: .move(edge: .trailing)))
         }
+    }
+}
+
+/// Fills the middle of the screen, kept clear of the Recently Played sidebar on the left.
+private struct ClearOfSidebar: ViewModifier {
+    let insets: EdgeInsets
+
+    func body(content: Content) -> some View {
+        content
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.leading, insets.leading + 28 + 270 + 16)
+            .padding(.trailing, insets.trailing + 28)
     }
 }
 
@@ -119,11 +142,6 @@ struct DesktopBackground: View {
                     startPoint: .top,
                     endPoint: .bottom
                 )
-                // Soft glow around the screen edges in the artwork's color.
-                Rectangle()
-                    .strokeBorder(player.palette.primaryColor.opacity(0.55), lineWidth: 36)
-                    .blur(radius: 34)
-                    .allowsHitTesting(false)
             }
             .animation(.easeInOut(duration: 1.2), value: blurred)
             .onAppear {

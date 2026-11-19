@@ -22,10 +22,12 @@ struct SettingsView: View {
                 .tabItem { Label("Status", systemImage: "battery.75percent") }
             WidgetSettings()
                 .tabItem { Label("Widget", systemImage: "rectangle.on.rectangle") }
+            NightSettings()
+                .tabItem { Label("Night", systemImage: "moon.stars") }
             AboutSettings()
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
-        .frame(width: 620, height: 500)
+        .frame(width: 700, height: 500)
         .onAppear { NSApp.activate() }
     }
 }
@@ -292,7 +294,7 @@ private struct WidgetSettings: View {
                 Toggle("Show weather, battery and AirPods under the clock", isOn: $lockScreenInfoRow)
                     .disabled(!lockScreenWidget)
                 Picker("Lyrics", selection: $lockScreenLyricsStyle) {
-                    ForEach(LyricsStyle.allCases) { style in
+                    ForEach(LyricsStyle.lockScreenCases) { style in
                         Text(style.title).tag(style.rawValue)
                     }
                 }
@@ -306,6 +308,53 @@ private struct WidgetSettings: View {
                     The lock screen player itself uses private macOS APIs that Apple can change \
                     in any update. If your Mac \
                     misbehaves at the lock screen, turn this off.
+                    """)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+    }
+}
+
+private struct NightSettings: View {
+    @AppStorage(Prefs.nightLyricsStyle) private var style = LyricsStyle.words.rawValue
+    @AppStorage(Prefs.nightEdgeLight) private var edgeLight = EdgeLightMode.artwork.rawValue
+    @AppStorage(Prefs.reactToMusic) private var reactToMusic = true
+
+    var body: some View {
+        Form {
+            Section {
+                Button("Start Night Mode") { NightModeController.shared.show() }
+                Picker("Lyrics", selection: $style) {
+                    ForEach(LyricsStyle.allCases) { style in
+                        Text(style.title).tag(style.rawValue)
+                    }
+                }
+                Picker("Edge light", selection: $edgeLight) {
+                    ForEach(EdgeLightMode.allCases) { mode in
+                        Text(mode.title).tag(mode.rawValue)
+                    }
+                }
+            } footer: {
+                Text("""
+                    Fills the screen with a big clock, the lyrics and a light around the edges, \
+                    and keeps the display awake. Esc leaves, Space plays or pauses, the arrow keys \
+                    skip. Move the mouse for buttons to change the style and the light. Also in the \
+                    menu bar icon (⌘N while its menu is open).
+                    """)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section {
+                Toggle("Make the visualizer and edge light react to the music", isOn: $reactToMusic)
+            } footer: {
+                Text("""
+                    Listens to the sound your Mac plays and keeps only how loud it is; nothing is \
+                    recorded or saved. Needs macOS 14.2 or later. macOS asks for System Audio \
+                    Recording permission the first time and shows its recording indicator while \
+                    Night Mode or the visualizer is on screen. Off, or without permission, they \
+                    move on their own instead.
                     """)
                     .font(.caption)
                     .foregroundStyle(.secondary)
