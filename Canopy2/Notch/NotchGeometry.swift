@@ -21,6 +21,9 @@ struct NotchGeometry: Equatable {
     let hasHardwareNotch: Bool
     /// Size of the physical notch, or of the fake notch on notchless displays.
     let notchSize: CGSize
+    /// Horizontal centre of the notch, from the menu bar areas on either side of it
+    /// (not assumed to be the middle of the screen).
+    let centerX: CGFloat
 
     init(screen: NSScreen) {
         screenFrame = screen.frame
@@ -29,9 +32,10 @@ struct NotchGeometry: Equatable {
            let right = screen.auxiliaryTopRightArea {
             hasHardwareNotch = true
             notchSize = CGSize(
-                width: screen.frame.width - left.width - right.width,
+                width: right.minX - left.maxX,
                 height: screen.safeAreaInsets.top
             )
+            centerX = (left.maxX + right.minX) / 2
         } else {
             hasHardwareNotch = false
             let menuBarHeight = screen.frame.maxY - screen.visibleFrame.maxY
@@ -39,6 +43,7 @@ struct NotchGeometry: Equatable {
                 width: NotchMetrics.fakeNotchWidth,
                 height: menuBarHeight > 0 ? menuBarHeight : NSStatusBar.system.thickness
             )
+            centerX = screen.frame.midX
         }
     }
 
@@ -51,11 +56,11 @@ struct NotchGeometry: Equatable {
     var windowFrame: NSRect {
         let width = NotchMetrics.maxOpenSize.width + NotchMetrics.shadowPadding * 2
         let height = NotchMetrics.maxOpenSize.height + NotchMetrics.shadowPadding
-        return NSRect(x: screenFrame.midX - width / 2, y: screenFrame.maxY - height, width: width, height: height)
+        return NSRect(x: centerX - width / 2, y: screenFrame.maxY - height, width: width, height: height)
     }
 
     /// A rect of `size` hanging from the top centre of the screen.
     func rectHangingFromTop(_ size: CGSize) -> NSRect {
-        NSRect(x: screenFrame.midX - size.width / 2, y: screenFrame.maxY - size.height, width: size.width, height: size.height)
+        NSRect(x: centerX - size.width / 2, y: screenFrame.maxY - size.height, width: size.width, height: size.height)
     }
 }

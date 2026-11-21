@@ -7,15 +7,21 @@ struct ClosedActivityView: View {
     let notchHeight: CGFloat
     let showsLyrics: Bool
 
+    /// Width of each wing (must match `NotchModel.closedSize` for `.activity`).
+    private var wing: CGFloat { notchHeight * 0.9 }
+
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                ArtworkView(image: player.artwork, size: max(notchHeight - 14, 12), cornerRadius: 4)
+            // Each item centred in its own wing beside the camera, so both sides match.
+            HStack(spacing: 0) {
+                ArtworkView(image: player.artwork, size: max(min(notchHeight - 12, wing - 8), 12), cornerRadius: 5)
+                    .frame(width: wing)
                 Spacer(minLength: 0)
                 EqualizerBars(isPlaying: player.track?.isPlaying ?? false, color: player.palette.primaryColor)
-                    .frame(width: max(notchHeight * 0.5, 10), height: max(notchHeight * 0.36, 8))
+                    .frame(width: max(notchHeight * 0.45, 10), height: max(notchHeight * 0.36, 8))
+                    .frame(width: wing)
             }
-            .padding(.horizontal, NotchMetrics.closedTopRadius + 6)
+            .padding(.horizontal, NotchMetrics.closedTopRadius)
             .frame(height: notchHeight)
 
             if showsLyrics, let track = player.track {
