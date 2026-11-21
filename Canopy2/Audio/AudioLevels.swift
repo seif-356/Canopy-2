@@ -48,6 +48,8 @@ final class AudioLevels: ObservableObject {
 
     private var users = 0
     private var tap: AnyObject?
+    /// Bumped whenever listening stops, so a tap still being set up is thrown away.
+    private var tapGeneration = 0
     private var timer: Timer?
     private var latest = [Float](repeating: 0, count: AudioLevels.bandCount)
     private var silentSince: Date?
@@ -74,15 +76,17 @@ final class AudioLevels: ObservableObject {
                     MainActor.assumeIsolated { self?.receive(bands) }
                 }
             }
-            if tap.start() {
-                self.tap = tap
-                isLive = true
-                listening = .waiting
-                silentSince = nil
-                NSLog("Canopy2 audio: listening to the system output")
-            } else {
-                listening = .failed
-                NSLog("Canopy2 audio: system audio tap unavailable, using made-up motion")
+            listening = .waiting
+            tapGeneration += 1
+            let generation = tapGeneration
+            // Setting up the tap waits for the user to answer the macOS permission
+            // prompt the first time, so do it off the main thread: the app keeps
+            // drawing (with made-up motion) meanwhile.
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                let started = tap.start()
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated { self?.tapStarted(tap, started: started, generation: generation) }
+                }
             }
         } else {
             listening = .unsupported
@@ -101,9 +105,27 @@ final class AudioLevels: ObservableObject {
     }
 
     private func stopTap() {
+        tapGeneration += 1
         if #available(macOS 14.2, *) { (tap as? SystemAudioTap)?.stop() }
         tap = nil
         isLive = false
+    }
+
+    private func tapStarted(_ newTap: AnyObject, started: Bool, generation: Int) {
+        guard generation == tapGeneration, users > 0 else {
+            // Listening stopped while the tap was being set up.
+            if #available(macOS 14.2, *), started { (newTap as? SystemAudioTap)?.stop() }
+            return
+        }
+        if started {
+            tap = newTap
+            isLive = true
+            silentSince = nil
+            NSLog("Canopy2 audio: listening to the system output")
+        } else {
+            listening = .failed
+            NSLog("Canopy2 audio: system audio tap unavailable, using made-up motion")
+        }
     }
 
     /// Listens for a few seconds (e.g. from Settings) to show whether sound comes through.
@@ -173,7 +195,7 @@ final class AudioLevels: ObservableObject {
 /// private aggregate device) and reports band loudness about 30 times a second.
 /// macOS asks for "System Audio Recording" permission the first time.
 @available(macOS 14.2, *)
-final class SystemAudioTap {
+final class SystemAudioTap: @unchecked Sendable {
     private let bandCount: Int
     private let onBands: @Sendable ([Float]) -> Void
     private let queue = DispatchQueue(label: "com.seif356.Canopy2.audio-tap", qos: .userInteractive)

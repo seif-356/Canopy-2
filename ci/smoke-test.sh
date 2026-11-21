@@ -27,6 +27,25 @@ sleep 3
 /usr/bin/perl "$APP/Contents/Resources/mediaremote-adapter.pl" \
   "$APP/Contents/Frameworks/MediaRemoteAdapter.framework" get --no-artwork > "$OUT/adapter-get.json" 2>&1 || true
 
+# Like shoot, but through Launch Services (as Finder opens apps), so macOS
+# attributes permission requests to Canopy 2 rather than to the CI agent.
+shoot_open() {
+  local scene="$1" wait="$2"
+  shift 2
+  echo "Scene: $scene (opened like Finder does)"
+  open -n -a "$APP" --stdout "$OUT/$scene.log" --stderr "$OUT/$scene.err" --args -smokeScene "$scene" -airDropShelf NO "$@"
+  sleep 5
+  # If macOS asks for permission, try to answer Allow (needs UI scripting rights).
+  for owner in UserNotificationCenter universalAccessAuthWarn; do
+    osascript -e "tell application \"System Events\" to click button \"Allow\" of window 1 of process \"$owner\"" >> "$OUT/allow.log" 2>&1 \
+      && echo "clicked Allow in $owner"
+  done
+  sleep "$wait"
+  screencapture -x "$OUT/$scene.png" 2>> "$OUT/errors.txt" || echo "$scene: screencapture failed" >> "$OUT/errors.txt"
+  pkill -x Canopy2 2>/dev/null
+  sleep 1
+}
+
 shoot() {
   local scene="$1" wait="$2"
   shift 2
@@ -99,15 +118,16 @@ out.writeframes(bytes(frames))
 PY
 afplay "$OUT/tone.wav" > "$OUT/afplay.log" 2>&1 &
 PLAY=$!
-shoot night-live 12 -nightLyricsStyle wave -reactToMusic YES
+shoot_open night-live 8 -nightLyricsStyle wave -reactToMusic YES
 kill "$PLAY" 2>/dev/null
 echo "afplay: $(cat "$OUT/afplay.log" 2>/dev/null | head -2)"
-grep -h "Canopy2 audio" "$OUT/night-live.log" || echo "night-live: no audio log lines"
+grep -h "Canopy2 audio" "$OUT/night-live.log" "$OUT/night-live.err" 2>/dev/null || echo "night-live: no audio log lines"
+tail -3 "$OUT/allow.log" 2>/dev/null
 
 kill "$FAKE" 2>/dev/null
 
 echo "--- app log summary ---"
-grep -h -E "Canopy2 (media: using|lyrics|audio)" "$OUT"/*.log | sed -E 's/^.*(Canopy2 )/\1/' | sort | uniq -c
+cat "$OUT"/*.log "$OUT"/*.err 2>/dev/null | grep -E "Canopy2 (media: using|lyrics|audio)" | sed -E 's/^.*(Canopy2 )/\1/' | sort | uniq -c
 
 # Small JPEG copies in the log too, so they can be read where artifact
 # downloads aren't reachable. Between SMOKE-IMAGE-BEGIN/END markers, base64.
