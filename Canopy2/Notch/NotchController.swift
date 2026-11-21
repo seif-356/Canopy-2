@@ -518,7 +518,7 @@ final class NotchController {
             if let sample = Self.smokeSampleImage() { airDropArrived(sample) }
         case "lockscreen", "lockscreen-constellation":
             lockScreen.showPreview()
-        case "night-words", "night-constellation", "night-wave":
+        case _ where scene.hasPrefix("night-"):
             NightModeController.shared.show()
         default:
             break // "notch-closed", "desktop": nothing to do beyond launch flags

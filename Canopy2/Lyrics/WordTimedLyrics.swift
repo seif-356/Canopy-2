@@ -29,17 +29,47 @@ enum AMLLLyrics {
 /// Chooses between line-timed lyrics (LRCLIB) and word-timed ones (AMLL).
 enum LyricsSources {
     static func pick(lineTimed: LRCLib.Result, wordTimed: [LyricLine]?, title: String) -> LRCLib.Result {
-        guard let wordTimed, let firstWordTimed = wordTimed.first else { return lineTimed }
-        if case .synced(let lines) = lineTimed,
-           let firstLine = lines.first(where: { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }),
-           abs(firstLine.time - firstWordTimed.time) > 2.5 {
-            // Probably a different recording (other intro, radio edit…): its timings would be off.
-            NSLog("Canopy2 lyrics: word timing for %@ doesn't line up (%.1fs vs %.1fs), using line timing",
-                  title, firstWordTimed.time, firstLine.time)
+        guard let wordTimed, !wordTimed.isEmpty else { return lineTimed }
+        guard case .synced(let lines) = lineTimed else {
+            NSLog("Canopy2 lyrics: word timing for %@ (no line timing to compare)", title)
+            return .synced(wordTimed)
+        }
+        // Same recording? Lines that start with the same words should start at about
+        // the same time in both. (Comparing only the first lines fails when one source
+        // counts an ad-lib as a line and the other doesn't.)
+        var timesByKey: [String: [Double]] = [:]
+        for line in lines {
+            let key = lineKey(line.text)
+            if !key.isEmpty { timesByKey[key, default: []].append(line.time) }
+        }
+        var offsets: [Double] = []
+        for line in wordTimed {
+            guard let times = timesByKey[lineKey(line.text)],
+                  let nearest = times.min(by: { abs($0 - line.time) < abs($1 - line.time) }) else { continue }
+            offsets.append(nearest - line.time)
+        }
+        guard offsets.count >= 3 else {
+            NSLog("Canopy2 lyrics: word timing for %@ can't be checked (%d matching lines), using line timing",
+                  title, offsets.count)
             return lineTimed
         }
-        NSLog("Canopy2 lyrics: word timing for %@", title)
+        let median = offsets.sorted()[offsets.count / 2]
+        guard abs(median) <= 1 else {
+            // Probably a different recording (other intro, radio edit…): its timings would be off.
+            NSLog("Canopy2 lyrics: word timing for %@ is %.1fs off the line timing, using line timing", title, median)
+            return lineTimed
+        }
+        NSLog("Canopy2 lyrics: word timing for %@ (%d lines agree within %.2fs)", title, offsets.count, abs(median))
         return .synced(wordTimed)
+    }
+
+    /// The first four words, lowercased, letters and digits only.
+    private static func lineKey(_ text: String) -> String {
+        text.lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+            .prefix(4)
+            .joined(separator: " ")
     }
 }
 
