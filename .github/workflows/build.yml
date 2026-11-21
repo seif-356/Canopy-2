@@ -83,7 +83,7 @@ jobs:
           [[ "$ARCHS" == *arm64* && "$ARCHS" == *x86_64* ]]
 
           nm "$BIN" > "$RUNNER_TEMP/symbols.txt"
-          for symbol in NotchController NowPlayingService MediaRemoteAdapterSource LyricsService NotificationMirror WidgetController ShelfStore BatteryMonitor AirPodsMonitor WeatherService AudioLevels SystemAudioTap NightModeController; do
+          for symbol in NotchController NowPlayingService MediaRemoteAdapterSource LyricsService NotificationMirror WidgetController ShelfStore BatteryMonitor AirPodsMonitor WeatherService AudioLevels SystemAudioTap NightModeController AMLLIndex TTMLParser; do
             grep -q "$symbol" "$RUNNER_TEMP/symbols.txt" || { echo "missing $symbol"; exit 1; }
           done
 

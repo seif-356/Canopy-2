@@ -88,6 +88,7 @@ struct NightModeView: View {
 
     private var controls: some View {
         HStack(spacing: 10) {
+            ListeningBadge(levels: levels)
             NightButton(symbol: "textformat", help: "Lyrics style: \(lyricsStyle.title)") {
                 let all = LyricsStyle.allCases
                 let next = all[((all.firstIndex(of: lyricsStyle) ?? 0) + 1) % all.count]
@@ -195,6 +196,26 @@ struct EdgeLight: View {
         .allowsHitTesting(false)
         .onAppear { levels.retain() }
         .onDisappear { levels.release() }
+    }
+}
+
+/// Whether the visuals follow the real music: shown with the buttons.
+private struct ListeningBadge: View {
+    @ObservedObject var levels: AudioLevels
+    @AppStorage(Prefs.reactToMusic) private var reactToMusic = true
+
+    var body: some View {
+        if reactToMusic, levels.listening != .idle {
+            Label(levels.listening == .hearing ? "Following the music" : levels.listening.title,
+                  systemImage: levels.listening.symbol)
+                .font(.system(size: 12, weight: .semibold))
+                .lineLimit(1)
+                .padding(.horizontal, 12)
+                .frame(height: 38)
+                .background(Capsule().fill(Color.black.opacity(0.35)))
+                .overlay(Capsule().strokeBorder(Color.white.opacity(0.18), lineWidth: 1))
+                .help(levels.listening == .silent ? "Settings → Night shows how to allow it" : "")
+        }
     }
 }
 

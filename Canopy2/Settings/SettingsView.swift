@@ -7,6 +7,7 @@ struct SettingsView: View {
     @ObservedObject var notifications: NotificationMirror
     @ObservedObject var weather: WeatherService
     @ObservedObject var headphones: AirPodsMonitor
+    let levels: AudioLevels
 
     var body: some View {
         TabView {
@@ -22,7 +23,7 @@ struct SettingsView: View {
                 .tabItem { Label("Status", systemImage: "battery.75percent") }
             WidgetSettings()
                 .tabItem { Label("Widget", systemImage: "rectangle.on.rectangle") }
-            NightSettings()
+            NightSettings(levels: levels)
                 .tabItem { Label("Night", systemImage: "moon.stars") }
             AboutSettings()
                 .tabItem { Label("About", systemImage: "info.circle") }
@@ -318,6 +319,7 @@ private struct WidgetSettings: View {
 }
 
 private struct NightSettings: View {
+    @ObservedObject var levels: AudioLevels
     @AppStorage(Prefs.nightLyricsStyle) private var style = LyricsStyle.words.rawValue
     @AppStorage(Prefs.nightEdgeLight) private var edgeLight = EdgeLightMode.artwork.rawValue
     @AppStorage(Prefs.reactToMusic) private var reactToMusic = true
@@ -348,13 +350,29 @@ private struct NightSettings: View {
             }
             Section {
                 Toggle("Make the visualizer and edge light react to the music", isOn: $reactToMusic)
+                LabeledContent("System Audio Recording") {
+                    TimelineView(.periodic(from: .now, by: 2)) { _ in
+                        Text(AudioCapturePermission.state.title)
+                    }
+                }
+                LabeledContent("Listening") {
+                    Label(levels.listening.title, systemImage: levels.listening.symbol)
+                        .foregroundStyle(levels.listening == .hearing ? Color.green : Color.secondary)
+                }
+                HStack {
+                    Button("Test for 6 seconds") { levels.test() }
+                        .disabled(!reactToMusic)
+                    Button("Open Privacy Settings") { AudioCapturePermission.openSettings() }
+                }
             } footer: {
                 Text("""
                     Listens to the sound your Mac plays and keeps only how loud it is; nothing is \
                     recorded or saved. Needs macOS 14.2 or later. macOS asks for System Audio \
-                    Recording permission the first time and shows its recording indicator while \
-                    Night Mode or the visualizer is on screen. Off, or without permission, they \
-                    move on their own instead.
+                    Recording permission the first time (Test does that too) and shows its \
+                    recording indicator while Night Mode or the visualizer is on screen. If it \
+                    says no sound came through, turn Canopy 2 on in Privacy Settings under \
+                    System Audio Recording, then quit and reopen Canopy 2. Off, or without \
+                    permission, they move on their own instead.
                     """)
                     .font(.caption)
                     .foregroundStyle(.secondary)

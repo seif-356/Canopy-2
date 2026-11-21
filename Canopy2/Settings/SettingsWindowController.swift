@@ -21,7 +21,8 @@ final class SettingsWindowController {
                 nowPlaying: controller.nowPlaying,
                 notifications: controller.notifications,
                 weather: controller.weather,
-                headphones: controller.headphones
+                headphones: controller.headphones,
+                levels: controller.levels
             )
             let window = NSWindow(contentViewController: NSHostingController(rootView: view))
             window.title = "Canopy 2 Settings"

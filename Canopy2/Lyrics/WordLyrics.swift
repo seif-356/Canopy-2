@@ -2,7 +2,7 @@ import SwiftUI
 
 /// "Word by word" lyrics: the word being sung, huge, with the one before above it
 /// and the one after below it. Some words get a matching symbol ("friends" 👥).
-/// Word timings are estimated from the line timings (see `WordTiming`).
+/// Word timings are real for word-timed lyrics, estimated otherwise (see `WordTiming`).
 struct WordByWordLyrics: View {
     @ObservedObject var player: NowPlayingService
     @ObservedObject var lyrics: LyricsService
@@ -51,7 +51,9 @@ struct WordMoment: Equatable {
         let word = words.lastIndex { $0.start <= time } ?? 0
         let nextLineTime = index + 1 < lines.count ? lines[index + 1].time : .infinity
         // A long instrumental gap after the line: rest on a note.
-        if word == words.count - 1, time - words[word].start > 3, nextLineTime - time > 1 {
+        let last = words[word]
+        let finished = last.end.map { time > $0 + 1.2 } ?? (time - last.start > 3)
+        if word == words.count - 1, finished, nextLineTime - time > 1 {
             previous = words[word].text
             current = "♪"
             next = Self.firstWord(in: lines, after: index)

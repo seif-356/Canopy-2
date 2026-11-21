@@ -5,6 +5,8 @@ struct LyricLine: Equatable, Identifiable, Sendable {
     /// Seconds from the start of the song.
     let time: Double
     let text: String
+    /// Real word timings, when the lyrics have them (nil: estimate from the line).
+    var words: [TimedWord]?
 }
 
 /// Time-synced lyrics from LRCLIB (lrclib.net: free, open, no API key).
@@ -23,6 +25,8 @@ final class LyricsService: ObservableObject {
 
     @Published private(set) var lines: [LyricLine] = []
     @Published private(set) var status: Status = .idle
+    /// True when the current lyrics come with real word timings.
+    @Published private(set) var hasWordTiming = false
 
     private var currentKey: String?
     private var task: Task<Void, Never>?
@@ -51,7 +55,9 @@ final class LyricsService: ObservableObject {
         status = .loading
         let title = track.title, artist = track.artist, album = track.album, duration = track.duration
         task = Task {
-            let result = await LRCLib.fetch(title: title, artist: artist, album: album, duration: duration)
+            async let lineTimed = LRCLib.fetch(title: title, artist: artist, album: album, duration: duration)
+            async let wordTimed = AMLLLyrics.fetch(title: title, artist: artist, duration: duration)
+            let result = LyricsSources.pick(lineTimed: await lineTimed, wordTimed: await wordTimed, title: title)
             guard !Task.isCancelled, currentKey == key else { return }
             if case .failed = result {} else { cache[key] = result }
             show(result)
@@ -89,10 +95,16 @@ final class LyricsService: ObservableObject {
         task?.cancel()
         currentKey = nil
         lines = []
+        hasWordTiming = false
         self.status = status
     }
 
     private func show(_ result: LRCLib.Result) {
+        if case .synced(let parsed) = result {
+            hasWordTiming = parsed.contains { $0.words != nil }
+        } else {
+            hasWordTiming = false
+        }
         switch result {
         case .synced(let parsed):
             lines = parsed

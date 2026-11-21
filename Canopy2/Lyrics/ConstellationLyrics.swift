@@ -4,8 +4,8 @@ import SwiftUI
 /// points joined by thin lines, like a star chart. The word being sung is large,
 /// marked with a crosshair; the previous line fades out behind it.
 ///
-/// Lyrics only have line timings, so word timings are estimated by spreading the
-/// line's time over its words, weighted by length.
+/// Words use their real timings when the lyrics have them (word-timed lyrics);
+/// otherwise they're estimated by spreading the line's time over its words.
 struct ConstellationLyrics: View {
     @ObservedObject var player: NowPlayingService
     @ObservedObject var lyrics: LyricsService
@@ -24,15 +24,20 @@ struct ConstellationLyrics: View {
     }
 }
 
-struct TimedWord {
+struct TimedWord: Equatable, Sendable {
     let text: String
+    /// Seconds from the start of the song.
     let start: Double
+    /// When the word ends, if known.
+    var end: Double?
 }
 
 enum WordTiming {
-    /// Estimated start time of each word in line `index`.
+    /// Start time of each word in line `index`: real when the lyrics are word-timed,
+    /// estimated otherwise.
     static func words(in lines: [LyricLine], at index: Int) -> [TimedWord] {
         let line = lines[index]
+        if let words = line.words, !words.isEmpty { return words }
         let words = line.text.split(whereSeparator: \.isWhitespace).map(String.init)
         guard !words.isEmpty else { return [] }
         let next = index + 1 < lines.count ? lines[index + 1].time : line.time + 4

@@ -67,7 +67,47 @@ shoot night-constellation 9 -nightLyricsStyle constellation -reactToMusic NO
 shoot night-wave 9 -nightLyricsStyle wave -reactToMusic NO
 shoot airdrop 8
 
+# Listening for real: play a tone, pre-approve System Audio Recording when the
+# runner allows it (SIP off), and check the app hears the sound through its tap.
+# Last, because without approval macOS shows a permission prompt.
+echo "--- audio check ---"
+csrutil status 2>&1 | head -1
+system_profiler SPAudioDataType 2>/dev/null | grep -E "^ {8}[^ ].*:$|Default Output Device|Output Channels" | head -12
+NOW="$(date +%s)"
+for db in "$HOME/Library/Application Support/com.apple.TCC/TCC.db" "/Library/Application Support/com.apple.TCC/TCC.db"; do
+  if sudo sqlite3 "$db" "INSERT OR REPLACE INTO access (service, client, client_type, auth_value, auth_reason, auth_version, flags, last_modified) VALUES ('kTCCServiceAudioCapture', 'com.seif356.Canopy2', 0, 2, 3, 1, 0, $NOW);" 2>> "$OUT/tcc.log"; then
+    echo "pre-approved in $db"
+  fi
+done
+cat "$OUT/tcc.log" 2>/dev/null | head -4
+python3 - "$OUT/tone.wav" <<'PY'
+import math, struct, sys, wave
+rate = 44100
+notes = [110, 220, 165, 330, 247, 440, 196, 392]
+out = wave.open(sys.argv[1], "wb")
+out.setnchannels(1)
+out.setsampwidth(2)
+out.setframerate(rate)
+frames = bytearray()
+for i in range(rate * 30):
+    t = i / rate
+    f = notes[int(t * 2) % len(notes)]
+    beat = 0.5 + 0.5 * math.cos(2 * math.pi * 2 * t)
+    s = 0.4 * beat * math.sin(2 * math.pi * f * t) + 0.12 * math.sin(2 * math.pi * 3 * f * t)
+    frames += struct.pack("<h", int(max(-1.0, min(1.0, s)) * 32767))
+out.writeframes(bytes(frames))
+PY
+afplay "$OUT/tone.wav" > "$OUT/afplay.log" 2>&1 &
+PLAY=$!
+shoot night-live 12 -nightLyricsStyle wave -reactToMusic YES
+kill "$PLAY" 2>/dev/null
+echo "afplay: $(cat "$OUT/afplay.log" 2>/dev/null | head -2)"
+grep -h "Canopy2 audio" "$OUT/night-live.log" || echo "night-live: no audio log lines"
+
 kill "$FAKE" 2>/dev/null
+
+echo "--- app log summary ---"
+grep -h -E "Canopy2 (media: using|lyrics|audio)" "$OUT"/*.log | sed -E 's/^.*(Canopy2 )/\1/' | sort | uniq -c
 
 # Small JPEG copies in the log too, so they can be read where artifact
 # downloads aren't reachable. Between SMOKE-IMAGE-BEGIN/END markers, base64.

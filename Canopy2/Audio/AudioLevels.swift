@@ -1,4 +1,5 @@
 import Accelerate
+import AppKit
 import AudioToolbox
 import CoreAudio
 import Foundation
@@ -22,6 +23,25 @@ final class AudioLevels: ObservableObject {
     @Published private(set) var level: Float = 0
     /// True while the levels come from the real sound output.
     @Published private(set) var isLive = false
+    /// What listening to the music is doing; stays at the last result when nothing uses it.
+    @Published private(set) var listening: Listening = .idle
+
+    enum Listening: Equatable {
+        /// Not tried since launch.
+        case idle
+        /// "React to the music" is off.
+        case off
+        /// Needs macOS 14.2 or later.
+        case unsupported
+        /// Couldn't set up the tap (no output device?).
+        case failed
+        /// Tapping the output, no sound yet.
+        case waiting
+        /// Sound is coming through.
+        case hearing
+        /// Only silence while a song played: most likely no permission.
+        case silent
+    }
 
     /// Whether a song is playing; set by the owner.
     var isPlaying: () -> Bool = { false }
@@ -46,7 +66,9 @@ final class AudioLevels: ObservableObject {
     }
 
     private func start() {
-        if Prefs.bool(Prefs.reactToMusic), #available(macOS 14.2, *) {
+        if !Prefs.bool(Prefs.reactToMusic) {
+            listening = .off
+        } else if #available(macOS 14.2, *) {
             let tap = SystemAudioTap(bandCount: Self.bandCount) { [weak self] bands in
                 DispatchQueue.main.async {
                     MainActor.assumeIsolated { self?.receive(bands) }
@@ -55,11 +77,15 @@ final class AudioLevels: ObservableObject {
             if tap.start() {
                 self.tap = tap
                 isLive = true
+                listening = .waiting
                 silentSince = nil
                 NSLog("Canopy2 audio: listening to the system output")
             } else {
+                listening = .failed
                 NSLog("Canopy2 audio: system audio tap unavailable, using made-up motion")
             }
+        } else {
+            listening = .unsupported
         }
         timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
@@ -80,16 +106,31 @@ final class AudioLevels: ObservableObject {
         isLive = false
     }
 
+    /// Listens for a few seconds (e.g. from Settings) to show whether sound comes through.
+    func test(seconds: Double = 6) {
+        retain()
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(seconds))
+            self?.release()
+        }
+    }
+
     private func receive(_ raw: [Float]) {
         guard tap != nil else { return }
         latest = raw
+        let isSilent = raw.allSatisfy { $0 == 0 }
+        if !isSilent, listening != .hearing {
+            listening = .hearing
+            NSLog("Canopy2 audio: hearing sound")
+        }
         // Without permission the tap delivers pure digital silence. If that goes on
         // while a song plays, give up on it and fall back to made-up motion.
-        if raw.allSatisfy({ $0 == 0 }) && isPlaying() {
+        if isSilent && isPlaying() && listening != .hearing {
             if let since = silentSince {
                 if Date().timeIntervalSince(since) > 5 {
                     NSLog("Canopy2 audio: only silence from the tap (no permission?), using made-up motion")
                     stopTap()
+                    listening = .silent
                 }
             } else {
                 silentSince = Date()
@@ -357,5 +398,68 @@ final class SpectrumAnalyzer {
             result[band] = pow(min(max((decibels - floor) / 40, 0), 1), 1.6)
         }
         return result
+    }
+}
+
+/// The "System Audio Recording" permission, read through the private TCC framework
+/// (there is no public API for it); `.unknown` when that isn't available. macOS
+/// asks the user the first time the app starts listening.
+enum AudioCapturePermission {
+    enum State {
+        case allowed
+        case denied
+        /// Not asked yet, or can't tell.
+        case unknown
+
+        var title: String {
+            switch self {
+            case .allowed: "Allowed"
+            case .denied: "Not allowed"
+            case .unknown: "Not asked yet"
+            }
+        }
+    }
+
+    private typealias Preflight = @convention(c) (CFString, CFDictionary?) -> Int32
+
+    static var state: State {
+        guard let handle = dlopen("/System/Library/PrivateFrameworks/TCC.framework/Versions/A/TCC", RTLD_NOW),
+              let symbol = dlsym(handle, "TCCAccessPreflight") else { return .unknown }
+        let preflight = unsafeBitCast(symbol, to: Preflight.self)
+        switch preflight("kTCCServiceAudioCapture" as CFString, nil) {
+        case 0: return .allowed
+        case 1: return .denied
+        default: return .unknown
+        }
+    }
+
+    /// System Settings → Privacy & Security → Screen & System Audio Recording.
+    static func openSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+}
+
+extension AudioLevels.Listening {
+    var title: String {
+        switch self {
+        case .idle: "Not tried yet"
+        case .off: "Off"
+        case .unsupported: "Needs macOS 14.2 or later"
+        case .failed: "Couldn't listen to the sound output"
+        case .waiting: "Listening… play something"
+        case .hearing: "Hearing the music"
+        case .silent: "No sound came through: allow Canopy 2 under System Audio Recording"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .hearing: "waveform"
+        case .waiting: "ear"
+        case .silent, .failed: "exclamationmark.triangle.fill"
+        case .idle, .off, .unsupported: "waveform.slash"
+        }
     }
 }
